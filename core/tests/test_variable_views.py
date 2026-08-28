@@ -135,3 +135,35 @@ class TestGroupRenameUngroupViews:
         client.force_login(dev_user)
         res = client.post(f"/environments/{environment.id}/groups/Old/rename/", HTTP_HX_PROMPT="New")
         assert res.status_code == 403
+
+
+@pytest.mark.django_db
+class TestEnvironmentFullPageRender:
+    """Exercises environment_view's actual GET response (not just the HTMX
+    fragment) — needs `collectstatic` to have run for base.html's
+    {% static %} tags (see .github/workflows/ci.yml)."""
+
+    def test_renders_200_with_grouped_variables(self, client, dev_read_write, environment):
+        from core import services
+        client.force_login(dev_read_write)
+        services.create_variable(environment_id=environment.id, user=dev_read_write, key="DB_HOST", value="postgres", is_secret=False)
+        services.update_variable_layout(
+            environment_id=environment.id, user=dev_read_write, key="DB_HOST",
+            group_name="Database", leading_comment="the db host",
+        )
+        res = client.get(f"/environments/{environment.id}/")
+        assert res.status_code == 200
+        html = res.content.decode()
+        assert "Database" in html
+        assert "the db host" in html
+        assert "DB_HOST" in html
+
+    def test_renders_200_when_empty(self, client, dev_read_write, environment):
+        client.force_login(dev_read_write)
+        res = client.get(f"/environments/{environment.id}/")
+        assert res.status_code == 200
+
+    def test_forbidden_without_read_permission(self, client, dev_user, environment):
+        client.force_login(dev_user)
+        res = client.get(f"/environments/{environment.id}/")
+        assert res.status_code == 403
