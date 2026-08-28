@@ -24,10 +24,12 @@
             <div class="flex items-center justify-end gap-1.5">
               {% if var.secret %}
               <form hx-post="{% url 'core:variable_reveal' environment.id var.key %}"
-                    hx-target="#var-row-{{ var.key }} td:nth-child(2)" hx-swap="innerHTML" class="flex items-center gap-1">
+                    hx-target="#var-row-{{ var.key }} td:nth-child(2)" hx-swap="innerHTML"
+                    hx-confirm="Reveal the secret value of {{ var.key }}? This will be recorded in the audit log."
+                    class="flex items-center gap-1">
                 {% csrf_token %}
-                <input type="checkbox" name="confirm" title="confirm reveal" class="rounded border-slate-600 bg-slate-950 text-indigo-500 focus:ring-indigo-500">
-                <c-ui.button variant="ghost" size="sm" type="submit" class="!px-2 !py-1"><c-icon.eye class="w-4 h-4" /></c-ui.button>
+                <input type="hidden" name="confirm" value="on">
+                <c-ui.button variant="ghost" size="sm" type="submit" class="!px-2 !py-1" title="Reveal"><c-icon.eye class="w-4 h-4" /></c-ui.button>
               </form>
               {% endif %}
               {% if can_write %}
