@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Register passkey — Env Manager{% endblock %}
+{% block content %}
+<div class="max-w-sm mx-auto mt-20 space-y-4">
+  <h1 class="text-xl font-semibold">Register your passkey</h1>
+  <input id="token" type="text" value="{{ token }}" placeholder="Invitation token"
+         class="w-full rounded bg-slate-900 border border-slate-700 px-3 py-2">
+  <input id="label" type="text" placeholder="Device label (e.g. Laptop)"
+         class="w-full rounded bg-slate-900 border border-slate-700 px-3 py-2">
+  <button id="register-btn" class="w-full rounded bg-indigo-600 hover:bg-indigo-500 px-3 py-2 font-medium">
+    Register device
+  </button>
+  <p id="msg" class="text-sm"></p>
+</div>
+<script>
+  document.getElementById("register-btn").addEventListener("click", async () => {
+    const token = document.getElementById("token").value.trim();
+    const label = document.getElementById("label").value.trim();
+    const msg = document.getElementById("msg");
+    msg.className = "text-sm text-red-400";
+    msg.textContent = "";
+    try {
+      await registerPasskey(token, label);
+      msg.className = "text-sm text-emerald-400";
+      msg.textContent = "Passkey registered — you can now log in.";
+    } catch (e) {
+      msg.textContent = e.message || "registration failed";
+    }
+  });
+</script>
+{% endblock %}

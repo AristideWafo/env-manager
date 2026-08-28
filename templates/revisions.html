@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}History — {{ environment }}{% endblock %}
+{% block content %}
+<a href="{% url 'core:environment' environment.id %}" class="text-sm text-slate-500 hover:text-white">&larr; {{ environment }}</a>
+<h1 class="text-xl font-semibold mt-2 mb-4">Revision history</h1>
+<ul class="space-y-2">
+  {% for rev in revisions %}
+  <li class="flex justify-between items-center border border-slate-800 rounded p-2">
+    <span>rev {{ rev.revision_number }} — {{ rev.created_by.email|default:"system" }} — {{ rev.created_at }}</span>
+    {% if can_write and rev.revision_number != environment.revision %}
+    <form method="post" action="{% url 'core:revision_restore' environment.id rev.revision_number %}"
+          onsubmit="return confirm('Restore revision {{ rev.revision_number }}? This creates a new revision.');">
+      {% csrf_token %}
+      <button class="text-xs text-indigo-400 hover:text-indigo-300">Restore</button>
+    </form>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endblock %}

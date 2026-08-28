@@ -1,0 +1,11 @@
+<form id="variables-table" hx-post="{% url 'core:variable_create' environment.id %}" hx-target="#variables-table" hx-swap="outerHTML"
+      class="border border-slate-800 rounded p-3 space-y-2">
+  {% csrf_token %}
+  <input name="key" placeholder="KEY" required class="w-full font-mono rounded bg-slate-900 border border-slate-700 px-2 py-1">
+  <input name="value" placeholder="value" class="w-full font-mono rounded bg-slate-900 border border-slate-700 px-2 py-1">
+  <label class="text-sm text-slate-400"><input type="checkbox" name="is_secret"> secret</label>
+  <div class="flex gap-2">
+    <button class="text-sm rounded bg-indigo-600 hover:bg-indigo-500 px-3 py-1">Save</button>
+    <a href="{% url 'core:environment' environment.id %}" class="text-sm text-slate-400 self-center">Cancel</a>
+  </div>
+</form>

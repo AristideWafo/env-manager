@@ -1,0 +1,18 @@
+<form id="variables-table" hx-post="{% url 'core:variable_edit' environment.id var.key %}" hx-target="#variables-table" hx-swap="outerHTML"
+      class="border border-slate-800 rounded p-3 space-y-2">
+  {% csrf_token %}
+  <div class="font-mono text-sm text-slate-400">{{ var.key }}</div>
+  {% if not var.is_secret %}
+  <input name="value" value="{{ var.value }}" class="w-full font-mono rounded bg-slate-900 border border-slate-700 px-2 py-1">
+  {% else %}
+  <input name="value" placeholder="new secret value" class="w-full font-mono rounded bg-slate-900 border border-slate-700 px-2 py-1">
+  {% endif %}
+  <input type="hidden" name="revision" value="{{ environment.revision }}">
+  <label class="text-sm text-slate-400">
+    <input type="checkbox" name="is_secret" {% if var.is_secret %}checked{% endif %}> secret
+  </label>
+  <div class="flex gap-2">
+    <button class="text-sm rounded bg-indigo-600 hover:bg-indigo-500 px-3 py-1">Save</button>
+    <a href="{% url 'core:environment' environment.id %}" class="text-sm text-slate-400 self-center">Cancel</a>
+  </div>
+</form>

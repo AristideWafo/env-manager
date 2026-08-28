@@ -1,0 +1,50 @@
+<div id="variables-table">
+  <table class="w-full text-sm border border-slate-800 rounded overflow-hidden">
+    <thead class="bg-slate-900 text-slate-400">
+      <tr><th class="text-left p-2">Key</th><th class="text-left p-2">Value</th><th class="p-2 w-56"></th></tr>
+    </thead>
+    <tbody>
+      {% for var in variables %}
+      <tr class="border-t border-slate-800" id="var-row-{{ var.key }}">
+        <td class="p-2 font-mono">{{ var.key }}</td>
+        <td class="p-2 font-mono">
+          {% if var.secret %}
+            <span class="text-slate-500">•••• secret</span>
+          {% else %}
+            {{ var.value }}
+          {% endif %}
+        </td>
+        <td class="p-2 flex gap-2 justify-end">
+          {% if var.secret %}
+          <form hx-post="{% url 'core:variable_reveal' environment.id var.key %}" hx-target="#var-row-{{ var.key }} td:nth-child(2)" hx-swap="innerHTML" class="inline">
+            {% csrf_token %}
+            <label class="text-xs text-slate-500"><input type="checkbox" name="confirm"> reveal</label>
+            <button class="text-xs text-slate-400 hover:text-white">Go</button>
+          </form>
+          {% endif %}
+          {% if can_write %}
+          <button class="text-xs text-indigo-400 hover:text-indigo-300"
+                  hx-get="{% url 'core:variable_edit' environment.id var.key %}"
+                  hx-target="#variables-table" hx-swap="outerHTML">Edit</button>
+          {% endif %}
+          {% if can_delete %}
+          <form hx-delete="{% url 'core:variable_delete' environment.id var.key %}" hx-target="#variables-table" hx-swap="outerHTML"
+                hx-confirm="Delete {{ var.key }}?">
+            {% csrf_token %}
+            <input type="hidden" name="revision" value="{{ environment.revision }}">
+            <button class="text-xs text-red-400 hover:text-red-300">Delete</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="3" class="p-3 text-slate-500">No variables yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if can_write %}
+  <button class="mt-3 text-sm text-indigo-400 hover:text-indigo-300"
+          hx-get="{% url 'core:variable_create' environment.id %}"
+          hx-target="#variables-table" hx-swap="outerHTML">+ Add variable</button>
+  {% endif %}
+</div>
