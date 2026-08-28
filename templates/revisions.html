@@ -1,20 +1,37 @@
-{% extends "base.html" %}
-{% block title %}History — {{ environment }}{% endblock %}
-{% block content %}
-<a href="{% url 'core:environment' environment.id %}" class="text-sm text-slate-500 hover:text-white">&larr; {{ environment }}</a>
-<h1 class="text-xl font-semibold mt-2 mb-4">Revision history</h1>
-<ul class="space-y-2">
-  {% for rev in revisions %}
-  <li class="flex justify-between items-center border border-slate-800 rounded p-2">
-    <span>rev {{ rev.revision_number }} — {{ rev.created_by.email|default:"system" }} — {{ rev.created_at }}</span>
-    {% if can_write and rev.revision_number != environment.revision %}
-    <form method="post" action="{% url 'core:revision_restore' environment.id rev.revision_number %}"
-          onsubmit="return confirm('Restore revision {{ rev.revision_number }}? This creates a new revision.');">
-      {% csrf_token %}
-      <button class="text-xs text-indigo-400 hover:text-indigo-300">Restore</button>
-    </form>
-    {% endif %}
-  </li>
-  {% endfor %}
-</ul>
-{% endblock %}
+<c-layouts.app title="History — {{ environment }}" heading="Revision history" subheading="{{ environment.project.name }} / {{ environment.name }}">
+  <c-slot name="actions">
+    <c-ui.button variant="ghost" size="sm" href="{% url 'core:environment' environment.id %}">&larr; {{ environment.name }}</c-ui.button>
+  </c-slot>
+
+  <c-ui.card>
+    <div class="-m-5 divide-y divide-slate-800/70">
+      {% for rev in revisions %}
+      <div class="flex items-center justify-between gap-3 px-5 py-3.5">
+        <div class="flex items-center gap-3 min-w-0">
+          <c-icon.history class="w-4 h-4 text-slate-500 shrink-0" />
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="font-medium text-slate-200">rev {{ rev.revision_number }}</span>
+              {% if rev.revision_number == environment.revision %}
+              <c-ui.badge tone="emerald"><c-icon.check_circle class="w-3 h-3" /> current</c-ui.badge>
+              {% endif %}
+            </div>
+            <p class="text-xs text-slate-500 truncate">{{ rev.created_by.email|default:"system" }} · {{ rev.created_at }}</p>
+          </div>
+        </div>
+        {% if can_write and rev.revision_number != environment.revision %}
+        <form method="post" action="{% url 'core:revision_restore' environment.id rev.revision_number %}"
+              onsubmit="return confirm('Restore revision {{ rev.revision_number }}? This creates a new revision.');" class="shrink-0">
+          {% csrf_token %}
+          <c-ui.button variant="secondary" size="sm" type="submit">Restore</c-ui.button>
+        </form>
+        {% endif %}
+      </div>
+      {% empty %}
+      <c-ui.empty title="No revisions yet" description="Revisions appear once a variable is created, edited, or deleted.">
+        <c-icon.history class="w-8 h-8" />
+      </c-ui.empty>
+      {% endfor %}
+    </div>
+  </c-ui.card>
+</c-layouts.app>

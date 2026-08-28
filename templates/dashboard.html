@@ -1,23 +1,47 @@
-{% extends "base.html" %}
-{% block title %}Dashboard — Env Manager{% endblock %}
-{% block content %}
-<h1 class="text-xl font-semibold mb-4">Projects</h1>
-{% for project in projects %}
-  <div class="mb-6 border border-slate-800 rounded-lg p-4">
-    <h2 class="font-medium mb-2">{{ project.name }}</h2>
-    <ul class="space-y-1">
+<c-layouts.app title="Dashboard — Env Manager" heading="Projects" subheading="Environments you can access, grouped by project.">
+
+{% if projects %}
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+  <c-ui.stat label="Projects" value="{{ projects|length }}" tone="indigo">
+    <c-icon.folder class="w-5 h-5" />
+  </c-ui.stat>
+  <c-ui.stat label="Environments" value="{{ total_environments }}" tone="emerald">
+    <c-icon.shield class="w-5 h-5" />
+  </c-ui.stat>
+  <c-ui.stat label="Locked for deploy" value="{{ locked_environments }}" tone="amber">
+    <c-icon.lock class="w-5 h-5" />
+  </c-ui.stat>
+</div>
+{% endif %}
+
+<div class="space-y-4">
+  {% for project in projects %}
+  <c-ui.card title="{{ project.name }}" subtitle="{{ project.environments.count }} environment{{ project.environments.count|pluralize }}">
+    <div class="divide-y divide-slate-800/70 -m-5 mt-0">
       {% for env in project.environments.all %}
-        <li>
-          <a href="{% url 'core:environment' env.id %}" class="text-indigo-400 hover:underline">{{ env.name }}</a>
-          <span class="text-xs text-slate-500 ml-2">rev {{ env.revision }}</span>
-          {% if env.locked_for_deploy %}<span class="text-xs text-amber-400 ml-2">locked</span>{% endif %}
-        </li>
+      <a href="{% url 'core:environment' env.id %}"
+         class="flex items-center justify-between gap-3 px-5 py-3.5 hover:bg-white/5 transition-colors">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <c-icon.folder class="w-4 h-4 text-slate-500 shrink-0" />
+          <span class="font-medium text-slate-200 truncate">{{ env.name }}</span>
+          <c-ui.badge tone="slate">rev {{ env.revision }}</c-ui.badge>
+          {% if env.locked_for_deploy %}
+          <c-ui.badge tone="amber"><c-icon.lock class="w-3 h-3" /> locked</c-ui.badge>
+          {% endif %}
+        </div>
+        <span class="text-slate-600 shrink-0">&rarr;</span>
+      </a>
       {% empty %}
-        <li class="text-slate-500 text-sm">No environments yet.</li>
+      <p class="px-5 py-4 text-sm text-slate-500">No environments yet.</p>
       {% endfor %}
-    </ul>
-  </div>
-{% empty %}
-  <p class="text-slate-500">No projects visible to your account yet — ask an admin for access.</p>
-{% endfor %}
-{% endblock %}
+    </div>
+  </c-ui.card>
+  {% empty %}
+  <c-ui.card>
+    <c-ui.empty title="No projects visible yet" description="Ask an admin to grant you access to a project environment.">
+      <c-icon.folder class="w-8 h-8" />
+    </c-ui.empty>
+  </c-ui.card>
+  {% endfor %}
+</div>
+</c-layouts.app>

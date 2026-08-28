@@ -43,7 +43,12 @@ def dashboard_view(request):
         projects = Project.objects.filter(
             environments__permissions__user=request.user
         ).distinct().prefetch_related("environments")
-    return render(request, "dashboard.html", {"projects": projects})
+    all_envs = [e for p in projects for e in p.environments.all()]
+    return render(request, "dashboard.html", {
+        "projects": projects,
+        "total_environments": len(all_envs),
+        "locked_environments": sum(1 for e in all_envs if e.locked_for_deploy),
+    })
 
 
 def _env_or_403(request, environment_id, need):

@@ -1,11 +1,25 @@
-<form id="variables-table" hx-post="{% url 'core:variable_create' environment.id %}" hx-target="#variables-table" hx-swap="outerHTML"
-      class="border border-slate-800 rounded p-3 space-y-2">
+<div id="variables-table">
+<form hx-post="{% url 'core:variable_create' environment.id %}" hx-target="#variables-table" hx-swap="outerHTML"
+      class="space-y-3 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
   {% csrf_token %}
-  <input name="key" placeholder="KEY" required class="w-full font-mono rounded bg-slate-900 border border-slate-700 px-2 py-1">
-  <input name="value" placeholder="value" class="w-full font-mono rounded bg-slate-900 border border-slate-700 px-2 py-1">
-  <label class="text-sm text-slate-400"><input type="checkbox" name="is_secret"> secret</label>
-  <div class="flex gap-2">
-    <button class="text-sm rounded bg-indigo-600 hover:bg-indigo-500 px-3 py-1">Save</button>
-    <a href="{% url 'core:environment' environment.id %}" class="text-sm text-slate-400 self-center">Cancel</a>
+  <div class="grid sm:grid-cols-2 gap-3">
+    <div>
+      <label class="block text-xs font-medium text-slate-400 mb-1">Key</label>
+      <input name="key" placeholder="DATABASE_URL" required
+             class="w-full font-mono text-sm rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-400 mb-1">Value</label>
+      <input name="value" placeholder="value"
+             class="w-full font-mono text-sm rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+    </div>
+  </div>
+  <label class="flex items-center gap-2 text-sm text-slate-400">
+    <input type="checkbox" name="is_secret" class="rounded border-slate-600 bg-slate-950 text-indigo-500 focus:ring-indigo-500"> mark as secret
+  </label>
+  <div class="flex gap-2 pt-1">
+    <c-ui.button variant="primary" size="sm" type="submit">Save</c-ui.button>
+    <c-ui.button variant="ghost" size="sm" href="{% url 'core:environment' environment.id %}">Cancel</c-ui.button>
   </div>
 </form>
+</div>

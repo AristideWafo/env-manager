@@ -1,27 +1,30 @@
-{% extends "base.html" %}
-{% block title %}Login — Env Manager{% endblock %}
-{% block content %}
-<div class="max-w-sm mx-auto mt-20 space-y-4">
-  <h1 class="text-xl font-semibold">Sign in with your passkey</h1>
-  <input id="email" type="email" placeholder="you@company.com"
-         class="w-full rounded bg-slate-900 border border-slate-700 px-3 py-2">
-  <button id="login-btn" class="w-full rounded bg-indigo-600 hover:bg-indigo-500 px-3 py-2 font-medium">
-    Continue
-  </button>
-  <p id="msg" class="text-sm text-red-400"></p>
-  <p class="text-sm text-slate-500">No account yet? Ask an admin to invite you.</p>
-</div>
+<c-layouts.auth title="Sign in — Env Manager">
+  <h1 class="text-lg font-semibold text-center mb-1">Sign in</h1>
+  <p class="text-sm text-slate-500 text-center mb-6">Use the passkey registered to your account.</p>
+
+  <div class="space-y-4">
+    <div>
+      <label for="email" class="block text-sm font-medium text-slate-300 mb-1.5">Email</label>
+      <input id="email" type="email" placeholder="you@company.com" autocomplete="email"
+             class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2.5 text-sm placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+    </div>
+    <c-ui.button id="login-btn" variant="primary" class="w-full">
+      <c-icon.key class="w-4 h-4" /> Continue with passkey
+    </c-ui.button>
+    <div id="msg"></div>
+    <p class="text-sm text-slate-500 text-center">No account yet? Ask an admin to invite you.</p>
+  </div>
+</c-layouts.auth>
 <script>
   document.getElementById("login-btn").addEventListener("click", async () => {
     const email = document.getElementById("email").value.trim();
     const msg = document.getElementById("msg");
-    msg.textContent = "";
+    msg.innerHTML = "";
     try {
       await loginWithPasskey(email);
       window.location.href = "{% url 'core:dashboard' %}";
     } catch (e) {
-      msg.textContent = e.message || "login failed";
+      msg.innerHTML = `<div class="rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-300 text-sm px-3 py-2">${e.message || "login failed"}</div>`;
     }
   });
 </script>
-{% endblock %}
