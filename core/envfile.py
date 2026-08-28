@@ -132,7 +132,15 @@ def parse_dotenv(content: str) -> list[dict]:
             continue
         m = _LINE_RE.match(line)
         if not m:
-            logger.warning("skipping unparseable .env line while importing: %r", line)
+            # Never log the raw line: an unparseable line is very likely
+            # `KEY=plaintext-secret` from a hand-edited legacy file, and this
+            # path runs on import (AGENT_CONTEXT.md rule #3 — no secret
+            # values in logs). Log only what's safe to identify the line by.
+            key_guess = line.split("=", 1)[0].strip() if "=" in line else None
+            logger.warning(
+                "skipping unparseable .env line while importing (key=%s, length=%d)",
+                key_guess or "<none>", len(line),
+            )
             continue
         key, raw_value = m.groups()
         variables.append({"key": key, "value": _unescape(raw_value)})
