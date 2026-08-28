@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Entries are
 generated automatically from conventional commits by the release pipeline.
 
 <!-- entries below are prepended automatically, newest first -->
+## v0.12.0 - 2026-08-28
+
+## [0.12.0](https://github.com/AristideWafo/env-manager/compare/v0.11.0...v0.12.0) (2026-08-28)
+
+
+### Features
+
+* **auth:** auto-logout after 10 minutes idle ([#15](https://github.com/AristideWafo/env-manager/issues/15)) ([edfbfa2](https://github.com/AristideWafo/env-manager/commit/edfbfa27ceb857ab546564db18994698c712f2ab))
+
 ## v0.11.0 - 2026-08-28
 
 ## [0.11.0](https://github.com/AristideWafo/env-manager/compare/v0.10.0...v0.11.0) (2026-08-28)
