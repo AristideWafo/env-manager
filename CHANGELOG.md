@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Entries are
 generated automatically from conventional commits by the release pipeline.
 
 <!-- entries below are prepended automatically, newest first -->
+## v0.8.0 - 2026-08-28
+
+## [0.8.0](https://github.com/AristideWafo/env-manager/compare/v0.7.1...v0.8.0) (2026-08-28)
+
+
+### Features
+
+* **editor:** write structured file, group-contiguity invariant, refresh button ([#8](https://github.com/AristideWafo/env-manager/issues/8)) ([72bfe51](https://github.com/AristideWafo/env-manager/commit/72bfe5107253e99d613553fdf11244d881c31f5a)), closes [#1](https://github.com/AristideWafo/env-manager/issues/1)
+
 ## v0.7.1 - 2026-08-28
 
 ### [0.7.1](https://github.com/AristideWafo/env-manager/compare/v0.7.0...v0.7.1) (2026-08-28)
