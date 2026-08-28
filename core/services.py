@@ -13,7 +13,7 @@ from cryptography.fernet import Fernet
 from django.conf import settings
 from django.db import transaction
 
-from .envfile import write_environment_file
+from .envfile import PathNotAllowed, write_environment_file
 from .models import AuditLog, Environment, Permission, Revision, Variable
 
 # .env-compatible key: what a POSIX shell / dotenv parser accepts unquoted on
@@ -62,6 +62,11 @@ class ValidationError(ApiError):
 class PathNotAllowedError(ApiError):
     def __init__(self, message="path outside allowed roots"):
         super().__init__("PATH_NOT_ALLOWED", 422, message)
+
+
+class FilesystemError(ApiError):
+    def __init__(self, message="failed to write .env file"):
+        super().__init__("FILESYSTEM_ERROR", 500, message)
 
 
 class NotFound(ApiError):
@@ -237,7 +242,12 @@ def _bump_revision_and_write(environment: Environment, user) -> Revision:
         snapshot=_snapshot(environment),
         created_by=user if getattr(user, "is_authenticated", False) else None,
     )
-    write_environment_file(environment, _decrypted_variables_for_file(environment))
+    try:
+        write_environment_file(environment, _decrypted_variables_for_file(environment))
+    except PathNotAllowed as e:
+        raise PathNotAllowedError(str(e)) from e
+    except OSError as e:
+        raise FilesystemError(f"could not write .env file: {e}") from e
     return revision
 
 
