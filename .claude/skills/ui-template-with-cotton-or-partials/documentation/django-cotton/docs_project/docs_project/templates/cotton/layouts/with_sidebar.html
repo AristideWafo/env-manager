@@ -1,0 +1,8 @@
+<c-vars :wide="False" />
+
+<c-layouts.docs hide-intro :wide="wide">
+    <c-slot name="sidebar">
+        <c-sidebar />
+    </c-slot>
+    {{ slot }}
+</c-layouts.docs>
