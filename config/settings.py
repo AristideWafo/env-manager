@@ -173,3 +173,31 @@ CI_API_TOKENS = [t for t in os.environ.get("CI_API_TOKENS", "").split(",") if t]
 # back script-prefixed too — same mechanism Django admin's own login redirect
 # already uses, kept consistent here.
 LOGIN_URL = "core:login"
+
+# --- Logging -----------------------------------------------------------------
+# Everything goes to stdout/stderr (never a file inside the container) so
+# `docker logs` / your log collector picks it up. Level is configurable per
+# deployment: INFO by default (variable CRUD, permission denials, imports),
+# DEBUG for verbose troubleshooting, WARNING/ERROR to quiet it down.
+LOG_LEVEL = os.environ.get("DJANGO_LOG_LEVEL", "INFO").upper()
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "default": {"format": "%(asctime)s %(levelname)s %(name)s: %(message)s"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "default"},
+    },
+    "root": {"handlers": ["console"], "level": LOG_LEVEL},
+    "loggers": {
+        # Django's own request logger already prints tracebacks for 500s;
+        # keep it, but don't double-propagate to root.
+        "django": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
+        "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False},
+        # This app's own loggers (core.services, core.envfile, core.api, core.views).
+        "core": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
+    },
+}
+

@@ -6,12 +6,16 @@ AGENT_CONTEXT.md rule #1/#2: every filesystem write goes through here, and
 every path is validated against allowed_roots before any I/O happens.
 """
 
+import logging
 import os
+import re
 from pathlib import Path
 
 from django.conf import settings
 
 from .models import AllowedRoot
+
+logger = logging.getLogger(__name__)
 
 
 class PathNotAllowed(Exception):
@@ -85,3 +89,60 @@ def write_environment_file(environment, decrypted_variables: list[dict]) -> None
     path = resolve_environment_path(environment)
     content = render_dotenv(decrypted_variables)
     atomic_write(path, content)
+    logger.info("wrote .env file for environment %s (%d variables)", environment.id, len(decrypted_variables))
+
+
+_LINE_RE = re.compile(r'^([A-Za-z_][A-Za-z0-9_]*)="((?:[^"\\]|\\.)*)"$')
+
+
+def _unescape(value: str) -> str:
+    """Reverse of render_dotenv's escaping, scanned left-to-right so the three
+    escape sequences it introduces (\\\\, \\", \\n) can never be ambiguous."""
+    out = []
+    i = 0
+    while i < len(value):
+        c = value[i]
+        if c == "\\" and i + 1 < len(value):
+            nxt = value[i + 1]
+            if nxt == "\\":
+                out.append("\\")
+                i += 2
+                continue
+            if nxt == '"':
+                out.append('"')
+                i += 2
+                continue
+            if nxt == "n":
+                out.append("\n")
+                i += 2
+                continue
+        out.append(c)
+        i += 1
+    return "".join(out)
+
+
+def parse_dotenv(content: str) -> list[dict]:
+    """Parse the KEY="value" format render_dotenv writes back into
+    [{"key": ..., "value": ...}, ...]. Lines that don't match are skipped
+    (e.g. a pre-existing file hand-edited outside the app)."""
+    variables = []
+    for line in content.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        m = _LINE_RE.match(line)
+        if not m:
+            logger.warning("skipping unparseable .env line while importing: %r", line)
+            continue
+        key, raw_value = m.groups()
+        variables.append({"key": key, "value": _unescape(raw_value)})
+    return variables
+
+
+def read_environment_file(environment) -> str | None:
+    """Read the current on-disk content for this environment's .env file, or
+    None if it doesn't exist yet."""
+    path = resolve_environment_path(environment)
+    if not path.exists():
+        return None
+    return path.read_text()

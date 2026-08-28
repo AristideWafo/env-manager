@@ -7,14 +7,17 @@ so every rule in AGENT_CONTEXT.md §8 is enforced in one place.
 
 from __future__ import annotations
 
+import logging
 import re
 
 from cryptography.fernet import Fernet
 from django.conf import settings
 from django.db import transaction
 
-from .envfile import PathNotAllowed, write_environment_file
+from .envfile import PathNotAllowed, parse_dotenv, read_environment_file, write_environment_file
 from .models import AuditLog, Environment, Permission, Revision, Variable
+
+logger = logging.getLogger(__name__)
 
 # .env-compatible key: what a POSIX shell / dotenv parser accepts unquoted on
 # the left of "=". Enforced at write time (UC-20) so a bad key can never
@@ -102,6 +105,7 @@ def check_permission(user, environment: Environment, need: str) -> None:
         return
     perm = Permission.objects.filter(user=user, environment=environment).first()
     if not perm or not getattr(perm, f"can_{need}"):
+        logger.warning("permission denied: user=%s need=%s environment=%s", user, need, environment.id)
         raise Forbidden(f"missing {need} permission on this environment")
 
 
@@ -245,8 +249,10 @@ def _bump_revision_and_write(environment: Environment, user) -> Revision:
     try:
         write_environment_file(environment, _decrypted_variables_for_file(environment))
     except PathNotAllowed as e:
+        logger.error("path not allowed writing environment %s: %s", environment.id, e)
         raise PathNotAllowedError(str(e)) from e
     except OSError as e:
+        logger.error("filesystem error writing environment %s: %s", environment.id, e)
         raise FilesystemError(f"could not write .env file: {e}") from e
     return revision
 
@@ -265,6 +271,7 @@ def create_variable(*, environment_id, user, key, value, is_secret) -> Variable:
     _bump_revision_and_write(environment, user)
     audit(user=user, action=AuditLog.Action.CREATE, target=key,
           project=environment.project, environment=environment)
+    logger.info("variable created: key=%s environment=%s user=%s", key, environment.id, user)
     return var
 
 
@@ -287,6 +294,7 @@ def update_variable(*, environment_id, user, key, value, revision, is_secret=Non
     _bump_revision_and_write(environment, user)
     audit(user=user, action=AuditLog.Action.UPDATE, target=key,
           project=environment.project, environment=environment)
+    logger.info("variable updated: key=%s environment=%s user=%s", key, environment.id, user)
     return var
 
 
@@ -305,6 +313,43 @@ def delete_variable(*, environment_id, user, key, revision) -> None:
     _bump_revision_and_write(environment, user)
     audit(user=user, action=AuditLog.Action.DELETE, target=key,
           project=environment.project, environment=environment)
+    logger.info("variable deleted: key=%s environment=%s user=%s", key, environment.id, user)
+
+
+@transaction.atomic
+def import_variables_from_file(*, environment_id, user) -> int:
+    """Populate untracked Variable rows from what's already on disk for this
+    environment's .env file (e.g. an existing file that predates this
+    environment being declared in the app). Keys already tracked in the DB
+    are left untouched — this only fills gaps, never overwrites. Does not
+    bump the revision or rewrite the file, since its content already matches.
+    Returns the number of variables imported."""
+    environment = Environment.objects.select_for_update().get(pk=environment_id)
+    try:
+        content = read_environment_file(environment)
+    except PathNotAllowed as e:
+        logger.error("path not allowed importing environment %s: %s", environment.id, e)
+        raise PathNotAllowedError(str(e)) from e
+    except OSError as e:
+        logger.error("filesystem error importing environment %s: %s", environment.id, e)
+        raise FilesystemError(f"could not read .env file: {e}") from e
+    if not content:
+        return 0
+    existing_keys = set(environment.variables.values_list("key", flat=True))
+    imported = 0
+    for entry in parse_dotenv(content):
+        if entry["key"] in existing_keys:
+            continue
+        var = Variable(environment=environment, key=entry["key"], is_secret=False)
+        _set_value(var, entry["value"], False)
+        var.save()
+        existing_keys.add(entry["key"])
+        imported += 1
+    if imported:
+        audit(user=user, action=AuditLog.Action.CREATE, target=f"import:{imported} variable(s)",
+              project=environment.project, environment=environment)
+        logger.info("imported %d variable(s) from existing .env file into environment %s", imported, environment.id)
+    return imported
 
 
 @transaction.atomic

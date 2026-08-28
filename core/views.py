@@ -8,6 +8,8 @@ These views call core.services directly (same functions the JSON API uses) so
 permission checks / audit / revision logic only live in one place.
 """
 
+import logging
+
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
@@ -15,6 +17,14 @@ from django.shortcuts import get_object_or_404, redirect, render
 from . import services
 from .models import Environment, Project
 from .services import ApiError
+
+logger = logging.getLogger(__name__)
+
+
+def _api_error_response(request, e: ApiError):
+    level = logging.ERROR if e.status >= 500 else logging.WARNING
+    logger.log(level, "view error %s %s: [%s] %s", request.method, request.path, e.code, e.message)
+    return render(request, "_error.html", {"message": e.message}, status=e.status)
 
 
 def login_view(request):
@@ -65,9 +75,17 @@ def environment_view(request, environment_id):
     environment, err = _env_or_403(request, environment_id, "read")
     if err:
         return err
-    variables = [services.serialize_variable(v) for v in environment.variables.all().order_by("key")]
     can_write = environment.locked_for_deploy is False and _has(request.user, environment, "write")
     can_delete = _has(request.user, environment, "delete")
+    # First visit to an environment whose .env file already has content on
+    # disk (e.g. it predates being declared here) — pull those keys in as
+    # real, manageable variables instead of showing an empty table.
+    if can_write and not environment.variables.exists():
+        try:
+            services.import_variables_from_file(environment_id=environment.id, user=request.user)
+        except ApiError:
+            pass  # best-effort; page still renders with whatever's already tracked
+    variables = [services.serialize_variable(v) for v in environment.variables.all().order_by("key")]
     return render(request, "environment.html", {
         "environment": environment, "variables": variables,
         "can_write": can_write, "can_delete": can_delete,
@@ -103,7 +121,7 @@ def variable_create_view(request, environment_id):
                 is_secret=request.POST.get("is_secret") == "on",
             )
         except ApiError as e:
-            return render(request, "_error.html", {"message": e.message}, status=e.status)
+            return _api_error_response(request, e)
         environment.refresh_from_db()
         return _render_variables_fragment(request, environment)
     return render(request, "_variable_form.html", {"environment": environment})
@@ -122,7 +140,7 @@ def variable_edit_view(request, environment_id, key):
                 is_secret=request.POST.get("is_secret") == "on",
             )
         except ApiError as e:
-            return render(request, "_error.html", {"message": e.message}, status=e.status)
+            return _api_error_response(request, e)
         environment.refresh_from_db()
         return _render_variables_fragment(request, environment)
     var = environment.variables.get(key=key)
@@ -140,7 +158,7 @@ def variable_delete_view(request, environment_id, key):
             revision=int(request.POST["revision"]),
         )
     except ApiError as e:
-        return render(request, "_error.html", {"message": e.message}, status=e.status)
+        return _api_error_response(request, e)
     environment.refresh_from_db()
     return _render_variables_fragment(request, environment)
 
@@ -175,5 +193,5 @@ def revision_restore_view(request, environment_id, rev_number):
     try:
         services.restore_revision(environment_id=environment.id, user=request.user, revision_number=rev_number)
     except ApiError as e:
-        return render(request, "_error.html", {"message": e.message}, status=e.status)
+        return _api_error_response(request, e)
     return redirect("core:environment", environment_id=environment.id)

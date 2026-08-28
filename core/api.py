@@ -5,6 +5,7 @@ codes). Mounted at /api/v1 by config/urls.py.
 
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Literal, Optional
 
@@ -29,6 +30,8 @@ from .models import (
 )
 from .services import ApiError
 
+logger = logging.getLogger(__name__)
+
 # --- Envelope & error handling ----------------------------------------------
 
 
@@ -41,6 +44,8 @@ api = NinjaAPI(title="Env Manager API", version="1.0.0", urls_namespace="api")
 
 @api.exception_handler(ApiError)
 def handle_api_error(request, exc: ApiError):
+    level = logging.ERROR if exc.status >= 500 else logging.WARNING
+    logger.log(level, "API error %s %s: [%s] %s", request.method, request.path, exc.code, exc.message)
     return api.create_response(
         request,
         {"error": {"code": exc.code, "message": exc.message},
@@ -51,6 +56,7 @@ def handle_api_error(request, exc: ApiError):
 
 @api.exception_handler(Exception)
 def handle_unexpected(request, exc: Exception):
+    logger.exception("unhandled exception in %s %s", request.method, request.path)
     return api.create_response(
         request,
         {"error": {"code": "INTERNAL_ERROR", "message": "internal error"},

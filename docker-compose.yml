@@ -1,14 +1,18 @@
+name: env-manager
+
 services:
   web:
     build: .
     image: ${ENV_MANAGER_IMAGE:-env-manager:latest}
+    hostname: env-manager
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    ports:
-      - "8000:8000"
+    networks:
+      - env-manager
+      - app_network
     environment:
       DJANGO_SETTINGS_MODULE: config.settings
       DJANGO_DEBUG: "0"
@@ -28,11 +32,25 @@ services:
       # arbitrary as long as it matches the AllowedRoot paths you configure.
       - ${PROJECTS_ROOT:-./data/projects}:${PROJECTS_ROOT_CONTAINER:-/data/projects}
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/login/', timeout=3).status < 500 else 1)"]
+      test: ["CMD", "python", "-c", "import http.client,sys; c=http.client.HTTPConnection('localhost',8000,timeout=3); c.request('GET','/login/'); sys.exit(0 if c.getresponse().status < 500 else 1)"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=app_network"
+      - "traefik.http.routers.env-manager.rule=Host(`tools.ffaero.com`) && PathPrefix(`/env-management`)"
+      - "traefik.http.routers.env-manager.entrypoints=websecure"
+      - "traefik.http.routers.env-manager.tls=true"
+      - "traefik.http.routers.env-manager.tls.certresolver=letsencrypt"
+      - "traefik.http.middlewares.env-manager-strip.stripprefix.prefixes=/env-management"
+      - "traefik.http.routers.env-manager.middlewares=env-manager-strip@docker"
+      - "traefik.http.services.env-manager.loadbalancer.server.port=8000"
+
+networks:
+  env-manager:
+    driver: bridge
 
 volumes:
   db-data:
