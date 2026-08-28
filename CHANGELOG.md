@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Entries are
 generated automatically from conventional commits by the release pipeline.
 
 <!-- entries below are prepended automatically, newest first -->
+## v0.10.0 - 2026-08-28
+
+## [0.10.0](https://github.com/AristideWafo/env-manager/compare/v0.9.3...v0.10.0) (2026-08-28)
+
+
+### Features
+
+* **sync:** Refresh from file now overwrites tracked variables ([#13](https://github.com/AristideWafo/env-manager/issues/13)) ([82e90a2](https://github.com/AristideWafo/env-manager/commit/82e90a2246d302a5483d3659c5d604dbafcab9cc))
+
 ## v0.9.3 - 2026-08-28
 
 ### [0.9.3](https://github.com/AristideWafo/env-manager/compare/v0.9.2...v0.9.3) (2026-08-28)
