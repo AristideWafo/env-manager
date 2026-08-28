@@ -4,6 +4,20 @@ All notable changes to this project are documented here. Entries are
 generated automatically from conventional commits by the release pipeline.
 
 <!-- entries below are prepended automatically, newest first -->
+## v0.7.0 - 2026-08-28
+
+## [0.7.0](https://github.com/AristideWafo/env-manager/compare/v0.6.0...v0.7.0) (2026-08-28)
+
+
+### Features
+
+* **editor:** variable reorder (up/down) and group rename/ungroup ([#6](https://github.com/AristideWafo/env-manager/issues/6)) ([9f0bb4d](https://github.com/AristideWafo/env-manager/commit/9f0bb4d018841aa41754de2c25a47200295a69d1))
+
+
+### Bug Fixes
+
+* **ci:** run collectstatic before tests so full-page views are testable ([#7](https://github.com/AristideWafo/env-manager/issues/7)) ([ff019e9](https://github.com/AristideWafo/env-manager/commit/ff019e9a4c1ca28a9599fca5476c5b49a5b001fa))
+
 ## v0.6.0 - 2026-08-28
 
 ## [0.6.0](https://github.com/AristideWafo/env-manager/compare/v0.5.0...v0.6.0) (2026-08-28)
