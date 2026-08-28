@@ -14,6 +14,14 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-insecure-secret-key-change
 DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = [h for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if h]
 
+# Set this if the app is served behind a reverse proxy that mounts it under a
+# path prefix (e.g. Traefik PathPrefix("/env-management") + stripprefix
+# middleware). Django's routing still sees the stripped path, but this makes
+# every URL Django generates itself (redirects, {% url %}, static files) come
+# back with the external prefix included, so navigation doesn't fall outside
+# the proxy's routing rule. Leave unset when served at the domain root.
+FORCE_SCRIPT_NAME = os.environ.get("DJANGO_FORCE_SCRIPT_NAME") or None
+
 # Fernet key used to encrypt Variable.encrypted_value. Must live OUTSIDE the DB
 # (AGENT_CONTEXT.md §5/§8-2). You can set ENV_MANAGER_FERNET_KEY explicitly (e.g.
 # from a secret manager). If you don't, and DEBUG is off, one is generated on
@@ -112,7 +120,10 @@ USE_TZ = True
 
 # --- Static files --------------------------------------------------------
 
-STATIC_URL = "static/"
+# Absolute (script-prefix-aware) so generated <link>/<script> URLs stay under
+# the same external path when FORCE_SCRIPT_NAME is set (see above) — a plain
+# relative "static/" would resolve wrong on any non-root page.
+STATIC_URL = f"{FORCE_SCRIPT_NAME or ''}/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
@@ -158,4 +169,7 @@ WEBAUTHN_ORIGIN = os.environ.get("WEBAUTHN_ORIGIN", "http://localhost:8000")
 # pipeline; scope is restricted in code to lock/unlock only, never session routes.
 CI_API_TOKENS = [t for t in os.environ.get("CI_API_TOKENS", "").split(",") if t]
 
-LOGIN_URL = "/login/"
+# Named URL (not a literal path) so it's resolved through reverse() and comes
+# back script-prefixed too — same mechanism Django admin's own login redirect
+# already uses, kept consistent here.
+LOGIN_URL = "core:login"
