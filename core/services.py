@@ -79,7 +79,13 @@ def encrypt_value(plaintext: str) -> bytes:
     return _fernet().encrypt(plaintext.encode())
 
 
-def decrypt_value(ciphertext: bytes) -> str:
+def decrypt_value(ciphertext: bytes | None) -> str:
+    # Defensive: a row can only reach encrypted_value=None with is_secret=True
+    # via direct ORM/admin access, never through this module's write paths —
+    # but if it happens, treat it as empty rather than crashing every future
+    # write to the environment.
+    if not ciphertext:
+        return ""
     return _fernet().decrypt(bytes(ciphertext)).decode()
 
 

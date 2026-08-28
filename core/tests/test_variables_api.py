@@ -58,6 +58,16 @@ class TestSecretMasking:
         assert res.status_code == 200
         assert res.json()["data"]["value"] == "s3cret"
 
+    def test_corrupt_secret_row_does_not_break_the_env_file_write(self, client, dev_read_write, environment):
+        """A Variable with is_secret=True but no encrypted_value (only reachable
+        by writing to the DB outside this app's own code paths) must not brick
+        every future write to the environment."""
+        from core.models import Variable
+        Variable.objects.create(environment=environment, key="CORRUPT", is_secret=True, encrypted_value=None)
+        client.force_login(dev_read_write)
+        res = post(client, f"/api/v1/environments/{environment.id}/variables", {"key": "OK", "value": "1"})
+        assert res.status_code == 200
+
 
 @pytest.mark.django_db
 class TestRevisionConflict:
