@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Entries are
 generated automatically from conventional commits by the release pipeline.
 
 <!-- entries below are prepended automatically, newest first -->
+## v0.9.0 - 2026-08-28
+
+## [0.9.0](https://github.com/AristideWafo/env-manager/compare/v0.8.0...v0.9.0) (2026-08-28)
+
+
+### Features
+
+* **editor:** preserve group header decoration style (====, ---, length) ([#9](https://github.com/AristideWafo/env-manager/issues/9)) ([4fe5b4d](https://github.com/AristideWafo/env-manager/commit/4fe5b4dbe0c452c956b5903a4877ee37234eab63))
+
 ## v0.8.0 - 2026-08-28
 
 ## [0.8.0](https://github.com/AristideWafo/env-manager/compare/v0.7.1...v0.8.0) (2026-08-28)
