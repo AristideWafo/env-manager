@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Entries are
 generated automatically from conventional commits by the release pipeline.
 
 <!-- entries below are prepended automatically, newest first -->
+## v0.9.3 - 2026-08-28
+
+### [0.9.3](https://github.com/AristideWafo/env-manager/compare/v0.9.2...v0.9.3) (2026-08-28)
+
+
+### Bug Fixes
+
+* **ui:** surface result/error feedback on Refresh from file ([#12](https://github.com/AristideWafo/env-manager/issues/12)) ([510773e](https://github.com/AristideWafo/env-manager/commit/510773e7ae085c885cd7cf311ba3b976f7db87d7))
+
 ## v0.9.2 - 2026-08-28
 
 ### [0.9.2](https://github.com/AristideWafo/env-manager/compare/v0.9.1...v0.9.2) (2026-08-28)
