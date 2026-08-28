@@ -1,8 +1,12 @@
 services:
   web:
     build: .
-    image: env-manager:latest
+    image: ${ENV_MANAGER_IMAGE:-env-manager:latest}
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     ports:
       - "8000:8000"
     environment:

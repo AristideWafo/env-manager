@@ -60,6 +60,41 @@ The pipeline calls `POST /api/v1/environments/{id}/lock` before deploying and
 secret) — see `API_CONTRACT.md`. The pipeline then reads the `.env` file
 directly off disk; Env Manager never triggers a deploy itself.
 
+## Deploy (production, no repo checkout needed)
+
+Pull the published image and run it with `docker run`, no need to clone this
+repo or build anything locally:
+
+```bash
+docker run -d \
+  --name env-manager \
+  --restart unless-stopped \
+  -p 8000:8000 \
+  -v env-manager-data:/app/data \
+  -v /opt/projects:/data/projects \
+  -e DJANGO_SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(50))')" \
+  -e ENV_MANAGER_FERNET_KEY="$(python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')" \
+  -e DJANGO_ALLOWED_HOSTS=env.example.com \
+  -e WEBAUTHN_RP_ID=env.example.com \
+  -e WEBAUTHN_ORIGIN=https://env.example.com \
+  ghcr.io/aristidewafo/env-manager:latest
+```
+
+Replace `/opt/projects` with the host directory this instance should be
+allowed to write `.env` files into, and the hostname values with your real
+domain (WebAuthn requires HTTPS or `localhost`). Store the generated
+`DJANGO_SECRET_KEY` / `ENV_MANAGER_FERNET_KEY` somewhere safe — losing the
+Fernet key makes every stored secret unrecoverable. Put the app behind a
+reverse proxy (nginx, Caddy, Traefik) that terminates TLS.
+
+Prefer Compose? Set `ENV_MANAGER_IMAGE=ghcr.io/aristidewafo/env-manager:latest`
+in your `.env` file and remove the `build: .` line from `docker-compose.yml`
+to skip building locally — see the [Docker](#docker) section below for the
+full variable reference.
+
+Any tagged release also works instead of `:latest`, e.g.
+`ghcr.io/aristidewafo/env-manager:0.1.0` — see [Releases](https://github.com/AristideWafo/env-manager/releases).
+
 ## Docker
 
 ```bash
