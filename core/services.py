@@ -14,7 +14,8 @@ from cryptography.fernet import Fernet
 from django.conf import settings
 from django.db import transaction
 
-from .envfile import PathNotAllowed, parse_dotenv, read_environment_file, write_environment_file
+from . import envdoc
+from .envfile import PathNotAllowed, read_environment_file, write_environment_file
 from .models import AuditLog, Environment, Permission, Revision, Variable
 
 logger = logging.getLogger(__name__)
@@ -142,7 +143,14 @@ def serialize_variable(var: Variable) -> dict:
         "value": None if var.is_secret else var.value,
         "secret": var.is_secret,
         "updated_at": var.updated_at.isoformat(),
+        "group": var.group_name,
+        "comment": var.leading_comment,
+        "order": var.order,
     }
+
+
+def _next_order(environment: Environment) -> int:
+    return (environment.variables.order_by("-order").values_list("order", flat=True).first() or 0) + 1
 
 
 def _snapshot(environment: Environment) -> list[dict]:
@@ -153,6 +161,9 @@ def _snapshot(environment: Environment) -> list[dict]:
             "value": var.value if not var.is_secret else None,
             "encrypted_value": var.encrypted_value.hex() if var.encrypted_value else None,
             "is_secret": var.is_secret,
+            "order": var.order,
+            "group_name": var.group_name,
+            "leading_comment": var.leading_comment,
         })
     return snap
 
@@ -205,10 +216,12 @@ def apply_batch(*, environment_id, user, revision: int, operations: list[dict]) 
             if key not in existing:
                 raise ValidationError(f"variable not found: {key}")
 
+    next_order = _next_order(environment)
     for op in operations:
         action, key = op["op"], op["key"]
         if action == "create":
-            var = Variable(environment=environment, key=key, is_secret=bool(op.get("is_secret")))
+            var = Variable(environment=environment, key=key, is_secret=bool(op.get("is_secret")), order=next_order)
+            next_order += 1
             _set_value(var, op.get("value", ""), var.is_secret)
             var.save()
             audit(user=user, action=AuditLog.Action.CREATE, target=key,
@@ -265,7 +278,7 @@ def create_variable(*, environment_id, user, key, value, is_secret) -> Variable:
     validate_key(key)
     if Variable.objects.filter(environment=environment, key=key).exists():
         raise ValidationError(f"variable already exists: {key}")
-    var = Variable(environment=environment, key=key, is_secret=is_secret)
+    var = Variable(environment=environment, key=key, is_secret=is_secret, order=_next_order(environment))
     _set_value(var, value, is_secret)
     var.save()
     _bump_revision_and_write(environment, user)
@@ -317,12 +330,81 @@ def delete_variable(*, environment_id, user, key, revision) -> None:
 
 
 @transaction.atomic
+def update_variable_layout(*, environment_id, user, key, group_name=None, leading_comment=None) -> Variable:
+    """Structured-editor metadata only (core/envdoc.py concepts: which group a
+    variable displays under, its leading comment). Never touches
+    value/encrypted_value, never bumps the revision, never rewrites the file
+    — write_environment_file's canonical always-quoted/alphabetical output
+    doesn't consult these fields (see models.py). Allowed even when the
+    environment is locked_for_deploy, since it can't change what's deployed.
+    Pass None (the default) to leave a field unchanged."""
+    environment = Environment.objects.get(pk=environment_id)
+    try:
+        var = Variable.objects.get(environment=environment, key=key)
+    except Variable.DoesNotExist:
+        raise NotFound(f"variable not found: {key}")
+    update_fields = []
+    if group_name is not None:
+        var.group_name = group_name
+        update_fields.append("group_name")
+    if leading_comment is not None:
+        var.leading_comment = leading_comment
+        update_fields.append("leading_comment")
+    if update_fields:
+        var.save(update_fields=update_fields)
+    audit(user=user, action=AuditLog.Action.UPDATE, target=f"layout:{key}",
+          project=environment.project, environment=environment)
+    return var
+
+
+@transaction.atomic
+def reorder_variables(*, environment_id, user, ordered_keys: list[str]) -> None:
+    """Reassigns display order (0..N-1) to match ordered_keys exactly.
+    Metadata-only — see update_variable_layout. ordered_keys must be exactly
+    the environment's current variable keys, each once; a partial or stale
+    list is rejected rather than silently reordering a subset."""
+    environment = Environment.objects.select_for_update().get(pk=environment_id)
+    existing = {v.key: v for v in environment.variables.all()}
+    if sorted(ordered_keys) != sorted(existing.keys()) or len(ordered_keys) != len(set(ordered_keys)):
+        raise ValidationError(
+            "ordered_keys must contain exactly the environment's current variable keys, each once"
+        )
+    for i, key in enumerate(ordered_keys):
+        var = existing[key]
+        if var.order != i:
+            var.order = i
+            var.save(update_fields=["order"])
+    audit(user=user, action=AuditLog.Action.UPDATE, target="reorder",
+          project=environment.project, environment=environment)
+
+
+def _leading_comment_for(container, index: int) -> str:
+    """Text of the contiguous run of Comment siblings immediately preceding
+    index in container.children (no Blank/other node between them and the
+    variable). Joined with newlines; '' if none."""
+    lines = []
+    i = index - 1
+    while i >= 0 and isinstance(container.children[i], envdoc.Comment):
+        lines.append(container.children[i].text)
+        i -= 1
+    return "\n".join(reversed(lines))
+
+
+@transaction.atomic
 def import_variables_from_file(*, environment_id, user) -> int:
     """Populate untracked Variable rows from what's already on disk for this
     environment's .env file (e.g. an existing file that predates this
     environment being declared in the app). Keys already tracked in the DB
     are left untouched — this only fills gaps, never overwrites. Does not
     bump the revision or rewrite the file, since its content already matches.
+
+    Uses core/envdoc.py to understand the real .env dialect (comments,
+    groups, unquoted values) rather than only the app's own always-quoted
+    canonical format, so a genuine legacy file imports correctly. The parsed
+    group/leading-comment/order are stored on Variable as display metadata
+    only (see models.py) — they never affect what write_environment_file
+    puts on disk (still always-quoted/alphabetical, per envfile.py).
+
     Returns the number of variables imported."""
     environment = Environment.objects.select_for_update().get(pk=environment_id)
     try:
@@ -336,14 +418,22 @@ def import_variables_from_file(*, environment_id, user) -> int:
     if not content:
         return 0
     existing_keys = set(environment.variables.values_list("key", flat=True))
+    next_order = _next_order(environment)
     imported = 0
-    for entry in parse_dotenv(content):
-        if entry["key"] in existing_keys:
+    document = envdoc.parse(content)
+    for container, index, entry in document.all_variables():
+        if entry.key in existing_keys:
             continue
-        var = Variable(environment=environment, key=entry["key"], is_secret=False)
-        _set_value(var, entry["value"], False)
+        group_name = container.name if isinstance(container, envdoc.Group) else ""
+        var = Variable(
+            environment=environment, key=entry.key, is_secret=False,
+            group_name=group_name, leading_comment=_leading_comment_for(container, index),
+            order=next_order,
+        )
+        _set_value(var, entry.value, False)
         var.save()
-        existing_keys.add(entry["key"])
+        existing_keys.add(entry.key)
+        next_order += 1
         imported += 1
     if imported:
         audit(user=user, action=AuditLog.Action.CREATE, target=f"import:{imported} variable(s)",
@@ -366,7 +456,14 @@ def restore_revision(*, environment_id, user, revision_number) -> Environment:
 
     Variable.objects.filter(environment=environment).delete()
     for entry in target.snapshot:
-        var = Variable(environment=environment, key=entry["key"], is_secret=entry["is_secret"])
+        var = Variable(
+            environment=environment, key=entry["key"], is_secret=entry["is_secret"],
+            # .get() with a default: snapshots taken before layout metadata
+            # existed won't have these keys — restoring one just resets
+            # display metadata to defaults, never fails.
+            order=entry.get("order", 0), group_name=entry.get("group_name", ""),
+            leading_comment=entry.get("leading_comment", ""),
+        )
         if entry["is_secret"]:
             var.encrypted_value = bytes.fromhex(entry["encrypted_value"]) if entry["encrypted_value"] else None
         else:
