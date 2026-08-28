@@ -11,6 +11,18 @@
       </thead>
       <tbody class="divide-y divide-slate-800/70">
         {% for var in variables %}
+        {% ifchanged var.group %}
+          {% if var.group %}
+          <tr class="bg-white/[0.02]">
+            <td colspan="3" class="px-5 pt-4 pb-1.5 text-xs font-semibold uppercase tracking-wide text-indigo-400/80">{{ var.group }}</td>
+          </tr>
+          {% endif %}
+        {% endifchanged %}
+        {% if var.comment %}
+        <tr id="var-comment-{{ var.key }}" class="hover:bg-white/5 transition-colors">
+          <td colspan="3" class="px-5 pt-2 text-xs text-slate-500 italic whitespace-pre-line">{{ var.comment }}</td>
+        </tr>
+        {% endif %}
         <tr id="var-row-{{ var.key }}" class="hover:bg-white/5 transition-colors">
           <td class="px-5 py-3 font-mono text-slate-200">{{ var.key }}</td>
           <td class="px-5 py-3 font-mono text-slate-400">

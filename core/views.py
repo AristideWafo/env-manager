@@ -85,7 +85,7 @@ def environment_view(request, environment_id):
             services.import_variables_from_file(environment_id=environment.id, user=request.user)
         except ApiError:
             pass  # best-effort; page still renders with whatever's already tracked
-    variables = [services.serialize_variable(v) for v in environment.variables.all().order_by("key")]
+    variables = [services.serialize_variable(v) for v in environment.variables.all().order_by("order")]
     return render(request, "environment.html", {
         "environment": environment, "variables": variables,
         "can_write": can_write, "can_delete": can_delete,
@@ -99,8 +99,15 @@ def _has(user, environment, need):
     return bool(perm and getattr(perm, f"can_{need}"))
 
 
+def _group_names(environment):
+    """Distinct, non-empty group names currently in use, for the create/edit
+    form's group suggestions (datalist) — not a separate Group table, group
+    membership is just Variable.group_name (see DATA_MODEL.md)."""
+    return sorted({g for g in environment.variables.values_list("group_name", flat=True) if g})
+
+
 def _render_variables_fragment(request, environment):
-    variables = [services.serialize_variable(v) for v in environment.variables.all().order_by("key")]
+    variables = [services.serialize_variable(v) for v in environment.variables.all().order_by("order")]
     return render(request, "_variables_table.html", {
         "environment": environment, "variables": variables,
         "can_write": _has(request.user, environment, "write") and not environment.locked_for_deploy,
@@ -115,16 +122,27 @@ def variable_create_view(request, environment_id):
         return err
     if request.method == "POST":
         try:
-            services.create_variable(
+            var = services.create_variable(
                 environment_id=environment.id, user=request.user,
                 key=request.POST["key"], value=request.POST.get("value", ""),
                 is_secret=request.POST.get("is_secret") == "on",
             )
+            group = request.POST.get("group", "").strip()
+            comment = request.POST.get("comment", "").strip()
+            if group or comment:
+                # Layout metadata (core/envdoc.py concepts) — separate from
+                # the value write above: no revision bump, no file rewrite.
+                services.update_variable_layout(
+                    environment_id=environment.id, user=request.user, key=var.key,
+                    group_name=group, leading_comment=comment,
+                )
         except ApiError as e:
             return _api_error_response(request, e)
         environment.refresh_from_db()
         return _render_variables_fragment(request, environment)
-    return render(request, "_variable_form.html", {"environment": environment})
+    return render(request, "_variable_form.html", {
+        "environment": environment, "group_names": _group_names(environment),
+    })
 
 
 @login_required
@@ -139,12 +157,22 @@ def variable_edit_view(request, environment_id, key):
                 value=request.POST.get("value", ""), revision=int(request.POST["revision"]),
                 is_secret=request.POST.get("is_secret") == "on",
             )
+            # Layout metadata — separate concern from the value write above
+            # (see create_variable_view). Always applied on save so clearing
+            # the field in the form clears it on the variable too.
+            services.update_variable_layout(
+                environment_id=environment.id, user=request.user, key=key,
+                group_name=request.POST.get("group", "").strip(),
+                leading_comment=request.POST.get("comment", "").strip(),
+            )
         except ApiError as e:
             return _api_error_response(request, e)
         environment.refresh_from_db()
         return _render_variables_fragment(request, environment)
     var = environment.variables.get(key=key)
-    return render(request, "_variable_edit_form.html", {"environment": environment, "var": var})
+    return render(request, "_variable_edit_form.html", {
+        "environment": environment, "var": var, "group_names": _group_names(environment),
+    })
 
 
 @login_required
