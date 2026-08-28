@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.ref }}
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.ref }}
           fetch-depth: 0
       - name: Resolve release tag
         id: resolve
@@ -75,6 +75,24 @@ jobs:
         with:
           ref: ${{ needs.resolve-tag.outputs.tag }}
 
+      - name: Extract changelog section for this tag
+        id: notes
+        env:
+          TAG: ${{ needs.resolve-tag.outputs.tag }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import pathlib
+          import re
+
+          tag = os.environ["TAG"]
+          path = pathlib.Path("CHANGELOG.md")
+          text = path.read_text() if path.exists() else ""
+          match = re.search(rf"^## {re.escape(tag)} - .*$\n+(.*?)(?=^## |\Z)", text, re.MULTILINE | re.DOTALL)
+          body = match.group(1).strip() if match else ""
+          pathlib.Path("RELEASE_NOTES.md").write_text(body or "No changelog entry found.")
+          PY
+
       - name: Set lowercase image name
         id: image
         run: echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
@@ -105,5 +123,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.resolve-tag.outputs.tag }}
-          generate_release_notes: true
+          body_path: RELEASE_NOTES.md
+          generate_release_notes: false
 

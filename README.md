@@ -11,7 +11,8 @@ permissions, optimistic-lock revisions, full audit trail, and atomic `.env`
 writes. Spec lives in [`AGENT_CONTEXT.md`](AGENT_CONTEXT.md),
 [`DATA_MODEL.md`](DATA_MODEL.md), [`USE_CASES.md`](USE_CASES.md) and
 [`API_CONTRACT.md`](API_CONTRACT.md) at the repo root — read those first for
-the "why", this file only covers the "how to run it".
+the "why", this file only covers the "how to run it". See
+[`CHANGELOG.md`](CHANGELOG.md) for release history.
 
 ## Stack
 
