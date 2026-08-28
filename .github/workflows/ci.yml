@@ -20,6 +20,7 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: ruff check .
       - run: python manage.py check
+      - run: python manage.py collectstatic --noinput
       - run: pytest -q
 
   build-and-push:
