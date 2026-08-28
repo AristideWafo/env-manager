@@ -69,7 +69,7 @@ Full page shell for authenticated views: sidebar nav + topbar + content slot.
     </aside>
 
     <div class="flex-1 min-w-0 flex flex-col">
-      <header class="flex items-center justify-between gap-4 border-b border-slate-800 px-4 md:px-8 py-4">
+      <header class="flex items-center justify-between flex-wrap gap-4 border-b border-slate-800 px-4 md:px-8 py-4">
         <div class="flex items-center gap-3 min-w-0">
           <button type="button" title="Open menu" aria-label="Open menu"
                   class="md:hidden shrink-0 text-slate-400 hover:text-white"
@@ -89,7 +89,7 @@ Full page shell for authenticated views: sidebar nav + topbar + content slot.
         </div>
       </header>
 
-      <main class="flex-1 min-w-0 px-4 md:px-8 py-6 max-w-5xl w-full mx-auto">
+      <main class="flex-1 min-w-0 w-full px-4 md:px-8 py-6">
         {% if messages %}
         <div class="mb-4 space-y-2">
           {% for message in messages %}
