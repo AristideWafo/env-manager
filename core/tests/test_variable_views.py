@@ -242,13 +242,13 @@ class TestEnvironmentRefreshView:
         assert res.status_code == 200
         assert "Traefik / TLS" in res.content.decode()
 
-    def test_is_additive_does_not_overwrite_tracked_value(self, client, dev_read_write, environment, tmp_root):
+    def test_overwrites_tracked_value_from_disk(self, client, dev_read_write, environment, tmp_root):
         from core import services
         client.force_login(dev_read_write)
         services.create_variable(environment_id=environment.id, user=dev_read_write, key="A", value="from-db", is_secret=False)
         (tmp_root / ".env").write_text("A=from-disk\n")
         client.post(f"/environments/{environment.id}/refresh/")
-        assert environment.variables.get(key="A").value == "from-db"
+        assert environment.variables.get(key="A").value == "from-disk"
 
     def test_requires_write_permission(self, client, dev_user, environment):
         from core.models import Permission

@@ -554,25 +554,36 @@ def _leading_comment_for(container, index: int) -> str:
 
 @transaction.atomic
 def import_variables_from_file(*, environment_id, user) -> int:
-    """Populate untracked Variable rows from what's already on disk for this
-    environment's .env file — either the first-visit auto-import of a file
-    that predates this environment being declared in the app, or a manual
-    "Refresh from file" (see views.environment_refresh_view). Keys already
-    tracked in the DB are left untouched — this only fills gaps, never
-    overwrites an existing value. Does not bump the revision or rewrite the
-    file itself, since the file's content already matches what was just
-    read from it.
+    """Full sync from what's already on disk for this environment's .env
+    file — either the first-visit auto-import of a file that predates this
+    environment being declared in the app, or a manual "Refresh from file"
+    (see views.environment_refresh_view). The file is the source of truth:
+    a key already tracked in the DB gets its value AND its layout (group,
+    leading comment, header flank style, position) overwritten to match
+    what's on disk, not just filled in when missing. A key present in the
+    DB but no longer in the file is left alone (untracked-from-file, not
+    deleted) and pushed after the file's keys, in its previous relative
+    order, so it survives the next write instead of vanishing.
 
     Uses core/envdoc.py to understand the real .env dialect (comments,
     groups, unquoted values). The parsed group/leading-comment/order are
-    stored on Variable and DO feed back into the next write
+    stored on Variable and feed back into the next write
     (envfile.render_document) — that's the point: re-running this against a
-    hand-edited file picks up its structure. _normalize_group_contiguity
-    keeps the group-contiguity invariant intact even if some of a group's
-    members were already tracked (and thus skipped) while others are new.
+    hand-edited file picks up its structure. Order is assigned straight
+    from document position, so group-contiguity falls out for free (no
+    separate _normalize_group_contiguity pass needed).
 
-    Returns the number of variables imported."""
+    A changed variable's is_secret flag is left as-is — the file only ever
+    holds plaintext, so there's no signal in it to flip that flag either
+    way — and the file gets rewritten unconditionally on every change,
+    guaranteeing the sync bumps the revision (so history/optimistic
+    concurrency see it) even though the write is a no-op for the on-disk
+    bytes themselves.
+
+    Returns the number of variables created or updated."""
     environment = Environment.objects.select_for_update().get(pk=environment_id)
+    if environment.locked_for_deploy:
+        raise EnvironmentLocked()
     try:
         content = read_environment_file(environment)
     except PathNotAllowed as e:
@@ -583,36 +594,66 @@ def import_variables_from_file(*, environment_id, user) -> int:
         raise FilesystemError(f"could not read .env file: {e}") from e
     if not content:
         return 0
-    existing_keys = set(environment.variables.values_list("key", flat=True))
-    next_order = _next_order(environment)
-    imported = 0
+
+    existing = {v.key: v for v in environment.variables.all()}
     document = envdoc.parse(content)
+    created = updated = 0
+    seen_keys = set()
+    order = 1
     for container, index, entry in document.all_variables():
-        if entry.key in existing_keys:
-            continue
+        seen_keys.add(entry.key)
         is_grouped = isinstance(container, envdoc.Group)
-        var = Variable(
-            environment=environment, key=entry.key, is_secret=False,
-            group_name=container.name if is_grouped else "",
-            leading_comment=_leading_comment_for(container, index),
-            group_flank_char=container.flank_char if is_grouped else "-",
-            group_flank_len=container.flank_len if is_grouped else 3,
-            order=next_order,
-        )
-        _set_value(var, entry.value, False)
-        var.save()
-        existing_keys.add(entry.key)
-        next_order += 1
-        imported += 1
-    if imported:
-        _normalize_group_contiguity(environment)
-        audit(user=user, action=AuditLog.Action.CREATE, target=f"import:{imported} variable(s)",
+        group_name = container.name if is_grouped else ""
+        leading_comment = _leading_comment_for(container, index)
+        flank_char = container.flank_char if is_grouped else "-"
+        flank_len = container.flank_len if is_grouped else 3
+
+        var = existing.get(entry.key)
+        if var is None:
+            var = Variable(environment=environment, key=entry.key, is_secret=False)
+            _set_value(var, entry.value, False)
+            var.group_name, var.leading_comment = group_name, leading_comment
+            var.group_flank_char, var.group_flank_len = flank_char, flank_len
+            var.order = order
+            var.save()
+            created += 1
+        else:
+            current_value = decrypt_value(var.encrypted_value) if var.is_secret else var.value
+            changed = (
+                current_value != entry.value or var.group_name != group_name
+                or var.leading_comment != leading_comment or var.group_flank_char != flank_char
+                or var.group_flank_len != flank_len or var.order != order
+            )
+            if changed:
+                if current_value != entry.value:
+                    _set_value(var, entry.value, var.is_secret)
+                var.group_name, var.leading_comment = group_name, leading_comment
+                var.group_flank_char, var.group_flank_len = flank_char, flank_len
+                var.order = order
+                var.save()
+                updated += 1
+        order += 1
+
+    # Keys tracked in the DB but no longer in the file: keep them, appended
+    # after the file's keys in their previous relative order, rather than
+    # deleting or leaving their order values colliding with the ones just
+    # assigned above.
+    for var in sorted((v for k, v in existing.items() if k not in seen_keys), key=lambda v: v.order):
+        if var.order != order:
+            var.order = order
+            var.save(update_fields=["order"])
+        order += 1
+
+    if created or updated:
+        audit(user=user, action=AuditLog.Action.UPDATE, target=f"refresh:{created} new, {updated} updated",
               project=environment.project, environment=environment)
-        logger.info("imported %d variable(s) from existing .env file into environment %s", imported, environment.id)
+        logger.info("refresh from file for environment %s: %d created, %d updated",
+                    environment.id, created, updated)
+        _bump_revision_and_write(environment, user)
     else:
-        logger.info("refresh from file for environment %s found no new variables (%d key(s) already tracked)",
-                    environment.id, len(existing_keys))
-    return imported
+        logger.info("refresh from file for environment %s: no changes (%d key(s) in sync)",
+                    environment.id, len(existing))
+    return created + updated
 
 
 @transaction.atomic
