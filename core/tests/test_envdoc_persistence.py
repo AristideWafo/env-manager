@@ -53,6 +53,7 @@ def test_import_then_write_preserves_group_and_comment_structure(environment, ad
     always-quoted/alphabetical-only guarantee."""
     (tmp_root / ".env").write_text(FIXTURE.read_text())
     services.import_variables_from_file(environment_id=environment.id, user=admin_user)
+    environment.refresh_from_db()  # import now bumps the revision too (it's a real sync/write)
     # Any value edit triggers _bump_revision_and_write, re-rendering the file
     # from current DB state (group/comment/order included).
     services.update_variable(
@@ -75,6 +76,7 @@ def test_import_then_write_preserves_group_and_comment_structure(environment, ad
 def test_write_never_splits_a_group_across_two_blocks(environment, admin_user, tmp_root):
     (tmp_root / ".env").write_text(FIXTURE.read_text())
     services.import_variables_from_file(environment_id=environment.id, user=admin_user)
+    environment.refresh_from_db()  # import now bumps the revision too (it's a real sync/write)
     services.update_variable(
         environment_id=environment.id, user=admin_user, key="DJANGO_DEBUG",
         value="1", revision=environment.revision,
@@ -341,7 +343,7 @@ def test_import_variables_from_file_is_reusable_manually(environment, admin_user
     assert n1 == 1
     (tmp_root / ".env").write_text("A=1\nB=2\n")
     n2 = services.import_variables_from_file(environment_id=environment.id, user=admin_user)
-    assert n2 == 1  # only the new key, A already tracked and untouched
+    assert n2 == 1  # only B is new — A's value/layout are unchanged, so it's not counted
     assert environment.variables.count() == 2
 
 
