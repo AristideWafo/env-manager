@@ -1,5 +1,10 @@
 # Env Manager
 
+[![CI](https://github.com/AristideWafo/env-manager/actions/workflows/ci.yml/badge.svg?branch=prod)](https://github.com/AristideWafo/env-manager/actions/workflows/ci.yml)
+[![Release](https://github.com/AristideWafo/env-manager/actions/workflows/release.yml/badge.svg)](https://github.com/AristideWafo/env-manager/actions/workflows/release.yml)
+[![Latest Release](https://img.shields.io/github/v/release/AristideWafo/env-manager?sort=semver)](https://github.com/AristideWafo/env-manager/releases)
+[![License: MIT](https://img.shields.io/github/license/AristideWafo/env-manager)](LICENSE)
+
 Self-hosted web app for teams to manage `.env` variables across projects
 without server access. WebAuthn (passkey) login, per-environment
 permissions, optimistic-lock revisions, full audit trail, and atomic `.env`
