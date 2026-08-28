@@ -4,3 +4,4 @@ django-cotton>=2.7,<3.0
 webauthn>=2.8,<3.0
 cryptography>=43,<51
 gunicorn>=22,<24
+whitenoise>=6,<7

@@ -14,7 +14,7 @@ services:
       DJANGO_DEBUG: "0"
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set a real secret key}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
-      ENV_MANAGER_FERNET_KEY: ${ENV_MANAGER_FERNET_KEY:?set a real Fernet key, keep it outside the DB}
+      ENV_MANAGER_FERNET_KEY: ${ENV_MANAGER_FERNET_KEY:-}
       ENV_MANAGER_DB_PATH: /app/data/db.sqlite3
       WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:?set the hostname passkeys will be registered against}
       WEBAUTHN_RP_NAME: ${WEBAUTHN_RP_NAME:-Env Manager}
