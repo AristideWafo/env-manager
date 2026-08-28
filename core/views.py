@@ -232,27 +232,33 @@ def variable_move_view(request, environment_id, key, direction):
 
 
 @login_required
-def group_rename_view(request, environment_id, group_name):
+def group_rename_view(request, environment_id):
+    """group_name travels in the POST body, not the URL path — group names
+    can contain '/' (e.g. "Traefik / TLS", a real header from a hand-written
+    .env file), which a <str:group_name> path segment can never match."""
     environment, err = _env_or_403(request, environment_id, "write")
     if err:
         return err
+    old_name = request.POST.get("group_name", "")
     # hx-prompt (see _variables_table.html) sends the entered value in the
     # HX-Prompt request header, not as a form field.
     new_name = request.POST.get("new_name") or request.headers.get("HX-Prompt", "")
     try:
-        services.rename_group(environment_id=environment.id, user=request.user, old_name=group_name, new_name=new_name)
+        services.rename_group(environment_id=environment.id, user=request.user, old_name=old_name, new_name=new_name)
     except ApiError as e:
         return _api_error_response(request, e)
     return _render_variables_fragment(request, environment)
 
 
 @login_required
-def group_ungroup_view(request, environment_id, group_name):
+def group_ungroup_view(request, environment_id):
+    """See group_rename_view's docstring — same reason group_name is a POST
+    field, not a URL path segment."""
     environment, err = _env_or_403(request, environment_id, "write")
     if err:
         return err
     try:
-        services.ungroup(environment_id=environment.id, user=request.user, group_name=group_name)
+        services.ungroup(environment_id=environment.id, user=request.user, group_name=request.POST.get("group_name", ""))
     except ApiError as e:
         return _api_error_response(request, e)
     return _render_variables_fragment(request, environment)

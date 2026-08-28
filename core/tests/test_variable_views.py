@@ -144,17 +144,40 @@ class TestGroupRenameUngroupViews:
         client.force_login(dev_read_write)
         services.create_variable(environment_id=environment.id, user=dev_read_write, key="A", value="1", is_secret=False)
         services.update_variable_layout(environment_id=environment.id, user=dev_read_write, key="A", group_name="Old")
-        res = client.post(f"/environments/{environment.id}/groups/Old/rename/", HTTP_HX_PROMPT="New")
+        res = client.post(f"/environments/{environment.id}/groups/rename/", {"group_name": "Old"}, HTTP_HX_PROMPT="New")
         assert res.status_code == 200
         assert environment.variables.get(key="A").group_name == "New"
         assert "New" in res.content.decode()
+
+    def test_rename_group_with_slash_in_name(self, client, dev_read_write, environment):
+        """Regression: a group_name containing '/' (e.g. a real "Traefik /
+        TLS" header) used to be embedded in the URL path, which a
+        <str:group_name> segment can never match — 500 NoReverseMatch on
+        every action touching that group. group_name now travels in the
+        POST body instead."""
+        from core import services
+        client.force_login(dev_read_write)
+        services.create_variable(environment_id=environment.id, user=dev_read_write, key="A", value="1", is_secret=False)
+        services.update_variable_layout(environment_id=environment.id, user=dev_read_write, key="A", group_name="Traefik / TLS")
+        res = client.post(f"/environments/{environment.id}/groups/rename/", {"group_name": "Traefik / TLS"}, HTTP_HX_PROMPT="New")
+        assert res.status_code == 200
+        assert environment.variables.get(key="A").group_name == "New"
 
     def test_ungroup_clears_group(self, client, dev_read_write, environment):
         from core import services
         client.force_login(dev_read_write)
         services.create_variable(environment_id=environment.id, user=dev_read_write, key="A", value="1", is_secret=False)
         services.update_variable_layout(environment_id=environment.id, user=dev_read_write, key="A", group_name="Old")
-        res = client.post(f"/environments/{environment.id}/groups/Old/ungroup/")
+        res = client.post(f"/environments/{environment.id}/groups/ungroup/", {"group_name": "Old"})
+        assert res.status_code == 200
+        assert environment.variables.get(key="A").group_name == ""
+
+    def test_ungroup_group_with_slash_in_name(self, client, dev_read_write, environment):
+        from core import services
+        client.force_login(dev_read_write)
+        services.create_variable(environment_id=environment.id, user=dev_read_write, key="A", value="1", is_secret=False)
+        services.update_variable_layout(environment_id=environment.id, user=dev_read_write, key="A", group_name="Traefik / TLS")
+        res = client.post(f"/environments/{environment.id}/groups/ungroup/", {"group_name": "Traefik / TLS"})
         assert res.status_code == 200
         assert environment.variables.get(key="A").group_name == ""
 
@@ -162,7 +185,7 @@ class TestGroupRenameUngroupViews:
         from core.models import Permission
         Permission.objects.create(user=dev_user, environment=environment, can_read=True)
         client.force_login(dev_user)
-        res = client.post(f"/environments/{environment.id}/groups/Old/rename/", HTTP_HX_PROMPT="New")
+        res = client.post(f"/environments/{environment.id}/groups/rename/", {"group_name": "Old"}, HTTP_HX_PROMPT="New")
         assert res.status_code == 403
 
 
@@ -207,6 +230,17 @@ class TestEnvironmentRefreshView:
         assert res.status_code == 200
         assert environment.variables.count() == 2
         assert "A" in res.content.decode()
+
+    def test_refresh_with_slash_in_group_name_from_real_file_does_not_500(self, client, dev_read_write, environment, tmp_root):
+        """Exact reproduction of the reported production crash: importing
+        (and then rendering the table for) a real .env file whose group
+        header contains '/' — e.g. "# ==== Traefik / TLS ====" — used to
+        NoReverseMatch on the group's Rename/Ungroup buttons."""
+        client.force_login(dev_read_write)
+        (tmp_root / ".env").write_text("# ==================== Traefik / TLS ====================\nENVIRONMENT=dev\n")
+        res = client.post(f"/environments/{environment.id}/refresh/")
+        assert res.status_code == 200
+        assert "Traefik / TLS" in res.content.decode()
 
     def test_is_additive_does_not_overwrite_tracked_value(self, client, dev_read_write, environment, tmp_root):
         from core import services
