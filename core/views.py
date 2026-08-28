@@ -106,12 +106,13 @@ def _group_names(environment):
     return sorted({g for g in environment.variables.values_list("group_name", flat=True) if g})
 
 
-def _render_variables_fragment(request, environment):
+def _render_variables_fragment(request, environment, message=None, message_tone="info"):
     variables = [services.serialize_variable(v) for v in environment.variables.all().order_by("order")]
     return render(request, "_variables_table.html", {
         "environment": environment, "variables": variables,
         "can_write": _has(request.user, environment, "write") and not environment.locked_for_deploy,
         "can_delete": _has(request.user, environment, "delete") and not environment.locked_for_deploy,
+        "message": message, "message_tone": message_tone,
     })
 
 
@@ -211,11 +212,17 @@ def environment_refresh_view(request, environment_id):
     if err:
         return err
     try:
-        services.import_variables_from_file(environment_id=environment.id, user=request.user)
+        imported = services.import_variables_from_file(environment_id=environment.id, user=request.user)
     except ApiError as e:
-        return _api_error_response(request, e)
+        # Import is @transaction.atomic — nothing was written, so the table
+        # is still accurate. Show the error alongside it instead of the
+        # generic _error.html, which would otherwise blank the whole table.
+        logger.log(logging.ERROR if e.status >= 500 else logging.WARNING,
+                    "refresh from file failed for environment %s: [%s] %s", environment.id, e.code, e.message)
+        return _render_variables_fragment(request, environment, message=e.message, message_tone="error")
     environment.refresh_from_db()
-    return _render_variables_fragment(request, environment)
+    message = f"Imported {imported} new variable(s) from file." if imported else "No new variables found — file already in sync."
+    return _render_variables_fragment(request, environment, message=message, message_tone="success")
 
 
 @login_required

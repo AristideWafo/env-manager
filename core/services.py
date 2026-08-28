@@ -609,6 +609,9 @@ def import_variables_from_file(*, environment_id, user) -> int:
         audit(user=user, action=AuditLog.Action.CREATE, target=f"import:{imported} variable(s)",
               project=environment.project, environment=environment)
         logger.info("imported %d variable(s) from existing .env file into environment %s", imported, environment.id)
+    else:
+        logger.info("refresh from file for environment %s found no new variables (%d key(s) already tracked)",
+                    environment.id, len(existing_keys))
     return imported
 
 
