@@ -1,4 +1,7 @@
 <div id="variables-table">
+  {% if message %}
+  <c-ui.alert tone="{{ message_tone }}" class="mb-4">{{ message }}</c-ui.alert>
+  {% endif %}
   {% if variables %}
   <div class="overflow-x-auto -mx-5">
     <table class="w-full text-sm">
