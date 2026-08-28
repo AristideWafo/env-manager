@@ -1,5 +1,6 @@
 from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
+from django.urls import reverse
 
 from .models import (
     AllowedRoot,
@@ -26,7 +27,11 @@ class UserAdmin(DjangoUserAdmin):
     def generate_invitation_link(self, request, queryset):
         for user in queryset:
             token = make_invitation_token(user)
-            url = request.build_absolute_uri(f"/register/?token={token}")
+            # reverse() (not a hardcoded "/register/") so the URL comes out
+            # script-prefixed too when the app is mounted under a path via
+            # DJANGO_FORCE_SCRIPT_NAME (e.g. behind a reverse-proxy PathPrefix).
+            path = reverse("core:register")
+            url = request.build_absolute_uri(f"{path}?token={token}")
             self.message_user(request, f"{user.email}: {url}", level=messages.INFO)
 
 
