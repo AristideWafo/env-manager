@@ -40,6 +40,6 @@ RUN python manage.py collectstatic --noinput
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/login/', timeout=3).status < 500 else 1)"
+    CMD python -c "import http.client,sys; c=http.client.HTTPConnection('localhost',8000,timeout=3); c.request('GET','/login/'); sys.exit(0 if c.getresponse().status < 500 else 1)"
 
 CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"]
