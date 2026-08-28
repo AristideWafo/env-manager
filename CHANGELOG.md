@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Entries are
 generated automatically from conventional commits by the release pipeline.
 
 <!-- entries below are prepended automatically, newest first -->
+## v0.9.2 - 2026-08-28
+
+### [0.9.2](https://github.com/AristideWafo/env-manager/compare/v0.9.1...v0.9.2) (2026-08-28)
+
+
+### Bug Fixes
+
+* **ui:** group name with '/' broke rename/ungroup URL routing ([#11](https://github.com/AristideWafo/env-manager/issues/11)) ([3dc71b8](https://github.com/AristideWafo/env-manager/commit/3dc71b87cc63eba34a02c4d4f170dfaf94338f13))
+
 ## v0.9.1 - 2026-08-28
 
 ### [0.9.1](https://github.com/AristideWafo/env-manager/compare/v0.9.0...v0.9.1) (2026-08-28)
