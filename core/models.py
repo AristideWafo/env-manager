@@ -127,6 +127,13 @@ class Variable(models.Model):
     order = models.PositiveIntegerField(default=0)
     group_name = models.CharField(max_length=255, blank=True, default="")
     leading_comment = models.TextField(blank=True, default="")
+    # Header decoration for group_name's group, e.g. "====================
+    # Traefik / TLS ====================" is flank_char="=", flank_len=20.
+    # Redundant across a group's members (every member of the same group
+    # carries the same values) — render_document reads it off the first
+    # member it renders. Only cosmetic: unused while group_name is "".
+    group_flank_char = models.CharField(max_length=1, default="-")
+    group_flank_len = models.PositiveIntegerField(default=3)
 
     class Meta:
         constraints = [

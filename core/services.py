@@ -164,18 +164,23 @@ def _snapshot(environment: Environment) -> list[dict]:
             "order": var.order,
             "group_name": var.group_name,
             "leading_comment": var.leading_comment,
+            "group_flank_char": var.group_flank_char,
+            "group_flank_len": var.group_flank_len,
         })
     return snap
 
 
 def _decrypted_variables_for_file(environment: Environment) -> list[dict]:
-    """In display order (Variable.order), with group/comment — see
-    envfile.render_document, which builds the file's group/comment
+    """In display order (Variable.order), with group/comment/header-style —
+    see envfile.render_document, which builds the file's group/comment
     structure from exactly these fields."""
     out = []
     for var in environment.variables.all().order_by("order"):
         value = decrypt_value(var.encrypted_value) if var.is_secret else var.value
-        out.append({"key": var.key, "value": value, "group": var.group_name, "comment": var.leading_comment})
+        out.append({
+            "key": var.key, "value": value, "group": var.group_name, "comment": var.leading_comment,
+            "flank_char": var.group_flank_char, "flank_len": var.group_flank_len,
+        })
     return out
 
 
@@ -585,10 +590,13 @@ def import_variables_from_file(*, environment_id, user) -> int:
     for container, index, entry in document.all_variables():
         if entry.key in existing_keys:
             continue
-        group_name = container.name if isinstance(container, envdoc.Group) else ""
+        is_grouped = isinstance(container, envdoc.Group)
         var = Variable(
             environment=environment, key=entry.key, is_secret=False,
-            group_name=group_name, leading_comment=_leading_comment_for(container, index),
+            group_name=container.name if is_grouped else "",
+            leading_comment=_leading_comment_for(container, index),
+            group_flank_char=container.flank_char if is_grouped else "-",
+            group_flank_len=container.flank_len if is_grouped else 3,
             order=next_order,
         )
         _set_value(var, entry.value, False)
@@ -625,6 +633,8 @@ def restore_revision(*, environment_id, user, revision_number) -> Environment:
             # display metadata to defaults, never fails.
             order=entry.get("order", 0), group_name=entry.get("group_name", ""),
             leading_comment=entry.get("leading_comment", ""),
+            group_flank_char=entry.get("group_flank_char", "-"),
+            group_flank_len=entry.get("group_flank_len", 3),
         )
         if entry["is_secret"]:
             var.encrypted_value = bytes.fromhex(entry["encrypted_value"]) if entry["encrypted_value"] else None

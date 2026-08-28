@@ -79,6 +79,8 @@ Contrainte unique : (`project_id`, `name`).
 | order | int | default 0. Position d'affichage (structured editor, `core/envdoc.py`) |
 | group_name | string | default `""`. Nom du groupe d'affichage, vide = hors groupe |
 | leading_comment | text | default `""`. Commentaire affiché juste au-dessus de la variable |
+| group_flank_char | char(1) | default `"-"`. Caractère de décoration de l'en-tête du groupe (ex. `=` pour `# ==== Nom ====`). Redondant entre les membres d'un même groupe ; ignoré si `group_name=""` |
+| group_flank_len | int | default 3. Longueur du flanc de l'en-tête (ex. 20 pour `====================`) |
 
 Contrainte unique : (`environment_id`, `key`).
 Règle : si `is_secret=true`, `value` reste vide/null, seul `encrypted_value` est peuplé.
@@ -127,7 +129,7 @@ Contrainte unique : (`user_id`, `environment_id`).
 | id | UUID PK | |
 | environment_id | FK → Environment | |
 | revision_number | int | correspond à `Environment.revision` au moment du snapshot |
-| snapshot | JSON | liste des variables (key, value ou encrypted_value, is_secret, order, group_name, leading_comment) à cet instant |
+| snapshot | JSON | liste des variables (key, value ou encrypted_value, is_secret, order, group_name, leading_comment, group_flank_char, group_flank_len) à cet instant |
 | created_by | FK → User | |
 | created_at | datetime | |
 
