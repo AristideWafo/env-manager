@@ -152,3 +152,89 @@ def test_restore_revision_from_snapshot_missing_layout_keys_does_not_fail(enviro
     var = environment.variables.get(key="A")
     assert var.value == "old"
     assert var.group_name == ""
+
+
+# --- swap_variable_order / rename_group / ungroup ---------------------------
+
+@pytest.mark.django_db
+def test_swap_variable_order_moves_up(environment, admin_user):
+    for k in ("A", "B", "C"):
+        services.create_variable(environment_id=environment.id, user=admin_user, key=k, value="1", is_secret=False)
+    services.swap_variable_order(environment_id=environment.id, user=admin_user, key="C", direction="up")
+    assert list(environment.variables.order_by("order").values_list("key", flat=True)) == ["A", "C", "B"]
+
+
+@pytest.mark.django_db
+def test_swap_variable_order_moves_down(environment, admin_user):
+    for k in ("A", "B", "C"):
+        services.create_variable(environment_id=environment.id, user=admin_user, key=k, value="1", is_secret=False)
+    services.swap_variable_order(environment_id=environment.id, user=admin_user, key="A", direction="down")
+    assert list(environment.variables.order_by("order").values_list("key", flat=True)) == ["B", "A", "C"]
+
+
+@pytest.mark.django_db
+def test_swap_variable_order_at_boundary_is_a_noop(environment, admin_user):
+    for k in ("A", "B"):
+        services.create_variable(environment_id=environment.id, user=admin_user, key=k, value="1", is_secret=False)
+    services.swap_variable_order(environment_id=environment.id, user=admin_user, key="A", direction="up")
+    services.swap_variable_order(environment_id=environment.id, user=admin_user, key="B", direction="down")
+    assert list(environment.variables.order_by("order").values_list("key", flat=True)) == ["A", "B"]
+
+
+@pytest.mark.django_db
+def test_swap_variable_order_rejects_bad_direction(environment, admin_user):
+    services.create_variable(environment_id=environment.id, user=admin_user, key="A", value="1", is_secret=False)
+    with pytest.raises(services.ValidationError):
+        services.swap_variable_order(environment_id=environment.id, user=admin_user, key="A", direction="sideways")
+
+
+@pytest.mark.django_db
+def test_swap_variable_order_unknown_key_not_found(environment, admin_user):
+    with pytest.raises(services.NotFound):
+        services.swap_variable_order(environment_id=environment.id, user=admin_user, key="NOPE", direction="up")
+
+
+@pytest.mark.django_db
+def test_rename_group_updates_all_members(environment, admin_user):
+    for k in ("A", "B", "C"):
+        services.create_variable(environment_id=environment.id, user=admin_user, key=k, value="1", is_secret=False)
+    services.update_variable_layout(environment_id=environment.id, user=admin_user, key="A", group_name="Old")
+    services.update_variable_layout(environment_id=environment.id, user=admin_user, key="B", group_name="Old")
+    services.update_variable_layout(environment_id=environment.id, user=admin_user, key="C", group_name="Other")
+
+    updated = services.rename_group(environment_id=environment.id, user=admin_user, old_name="Old", new_name="New")
+    assert updated == 2
+    assert environment.variables.get(key="A").group_name == "New"
+    assert environment.variables.get(key="B").group_name == "New"
+    assert environment.variables.get(key="C").group_name == "Other"
+
+
+@pytest.mark.django_db
+def test_rename_group_rejects_empty_new_name(environment, admin_user):
+    with pytest.raises(services.ValidationError):
+        services.rename_group(environment_id=environment.id, user=admin_user, old_name="Old", new_name="  ")
+
+
+@pytest.mark.django_db
+def test_rename_group_no_members_is_a_noop_returns_zero(environment, admin_user):
+    assert services.rename_group(environment_id=environment.id, user=admin_user, old_name="Ghost", new_name="X") == 0
+
+
+@pytest.mark.django_db
+def test_ungroup_clears_group_name_for_all_members(environment, admin_user):
+    for k in ("A", "B"):
+        services.create_variable(environment_id=environment.id, user=admin_user, key=k, value="1", is_secret=False)
+        services.update_variable_layout(environment_id=environment.id, user=admin_user, key=k, group_name="G")
+
+    updated = services.ungroup(environment_id=environment.id, user=admin_user, group_name="G")
+    assert updated == 2
+    assert environment.variables.get(key="A").group_name == ""
+    assert environment.variables.get(key="B").group_name == ""
+
+
+@pytest.mark.django_db
+def test_ungroup_does_not_delete_variables(environment, admin_user):
+    services.create_variable(environment_id=environment.id, user=admin_user, key="A", value="1", is_secret=False)
+    services.update_variable_layout(environment_id=environment.id, user=admin_user, key="A", group_name="G")
+    services.ungroup(environment_id=environment.id, user=admin_user, group_name="G")
+    assert environment.variables.filter(key="A").exists()

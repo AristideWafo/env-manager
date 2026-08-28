@@ -473,6 +473,45 @@ def reorder_variables(request, environment_id: uuid.UUID, payload: ReorderVariab
     })
 
 
+class MoveVariableIn(Schema):
+    direction: Literal["up", "down"]
+
+
+@variables_router.post("/environments/{environment_id}/variables/{key}/move")
+def move_variable(request, environment_id: uuid.UUID, key: str, payload: MoveVariableIn):
+    environment = _get_environment_checked(request, environment_id, "write")
+    services.swap_variable_order(environment_id=environment.id, user=request.user, key=key, direction=payload.direction)
+    return envelope({
+        "variables": [services.serialize_variable(v) for v in environment.variables.all().order_by("order")],
+    })
+
+
+class RenameGroupIn(Schema):
+    old_name: str
+    new_name: str
+
+
+@variables_router.post("/environments/{environment_id}/groups/rename")
+def rename_group(request, environment_id: uuid.UUID, payload: RenameGroupIn):
+    environment = _get_environment_checked(request, environment_id, "write")
+    updated = services.rename_group(
+        environment_id=environment.id, user=request.user,
+        old_name=payload.old_name, new_name=payload.new_name,
+    )
+    return envelope({"updated": updated})
+
+
+class UngroupIn(Schema):
+    group_name: str
+
+
+@variables_router.post("/environments/{environment_id}/groups/ungroup")
+def ungroup(request, environment_id: uuid.UUID, payload: UngroupIn):
+    environment = _get_environment_checked(request, environment_id, "write")
+    updated = services.ungroup(environment_id=environment.id, user=request.user, group_name=payload.group_name)
+    return envelope({"updated": updated})
+
+
 class UpdateLayoutIn(Schema):
     group: Optional[str] = None
     comment: Optional[str] = None

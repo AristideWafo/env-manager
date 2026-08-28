@@ -111,6 +111,31 @@ POST   /environments/{id}/variables/reorder
   → réordonne les variables selon la liste fournie, qui doit contenir exactement les clés
   actuelles de l'environnement (chacune une fois), sinon VALIDATION_ERROR. Nécessite WRITE.
   Même règle que /layout : pas de revision, pas de réécriture fichier, autorisé si verrouillé.
+
+POST   /environments/{id}/variables/{key}/move
+  body: { direction: "up"|"down" }
+  → échange l'ordre de la variable avec son voisin immédiat (no-op en bout de liste).
+  Nécessite WRITE. Même règles que /reorder.
+```
+
+## Groupes
+
+Un groupe n'est pas une table séparée — juste la valeur partagée `Variable.group_name`
+(voir DATA_MODEL.md). Renommer/dégrouper agit donc en masse sur toutes les variables qui
+partagent ce nom.
+
+```
+POST   /environments/{id}/groups/rename
+  body: { old_name, new_name }
+  → renomme le groupe : met à jour group_name sur toutes les variables membres.
+  new_name vide → VALIDATION_ERROR. Nécessite WRITE. Métadonnée uniquement (pas de revision,
+  pas de réécriture fichier, autorisé si verrouillé).
+
+POST   /environments/{id}/groups/ungroup
+  body: { group_name }
+  → retire toutes les variables du groupe (group_name -> ""), équivalent à
+  delete_group(keep_children=True) dans core/envdoc.py : les variables restent, seul
+  l'affichage groupé disparaît. Nécessite WRITE.
 ```
 
 ## Revisions

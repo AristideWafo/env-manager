@@ -86,3 +86,52 @@ class TestVariablesTableFragmentRendersGroupedTable:
         )
         html = res.content.decode()
         assert html.index("ZZZ") < html.index("AAA")  # created first -> lower order -> listed first
+
+
+@pytest.mark.django_db
+class TestVariableMoveView:
+    def test_move_up_reorders(self, client, dev_read_write, environment):
+        from core import services
+        client.force_login(dev_read_write)
+        services.create_variable(environment_id=environment.id, user=dev_read_write, key="A", value="1", is_secret=False)
+        services.create_variable(environment_id=environment.id, user=dev_read_write, key="B", value="1", is_secret=False)
+        res = client.post(f"/environments/{environment.id}/variables/B/move/up/")
+        assert res.status_code == 200
+        html = res.content.decode()
+        assert html.index("B") < html.index("A")
+
+    def test_requires_write_permission(self, client, dev_user, environment):
+        from core.models import Permission
+        Permission.objects.create(user=dev_user, environment=environment, can_read=True)
+        client.force_login(dev_user)
+        res = client.post(f"/environments/{environment.id}/variables/A/move/up/")
+        assert res.status_code == 403
+
+
+@pytest.mark.django_db
+class TestGroupRenameUngroupViews:
+    def test_rename_group_via_hx_prompt_header(self, client, dev_read_write, environment):
+        from core import services
+        client.force_login(dev_read_write)
+        services.create_variable(environment_id=environment.id, user=dev_read_write, key="A", value="1", is_secret=False)
+        services.update_variable_layout(environment_id=environment.id, user=dev_read_write, key="A", group_name="Old")
+        res = client.post(f"/environments/{environment.id}/groups/Old/rename/", HTTP_HX_PROMPT="New")
+        assert res.status_code == 200
+        assert environment.variables.get(key="A").group_name == "New"
+        assert "New" in res.content.decode()
+
+    def test_ungroup_clears_group(self, client, dev_read_write, environment):
+        from core import services
+        client.force_login(dev_read_write)
+        services.create_variable(environment_id=environment.id, user=dev_read_write, key="A", value="1", is_secret=False)
+        services.update_variable_layout(environment_id=environment.id, user=dev_read_write, key="A", group_name="Old")
+        res = client.post(f"/environments/{environment.id}/groups/Old/ungroup/")
+        assert res.status_code == 200
+        assert environment.variables.get(key="A").group_name == ""
+
+    def test_rename_requires_write_permission(self, client, dev_user, environment):
+        from core.models import Permission
+        Permission.objects.create(user=dev_user, environment=environment, can_read=True)
+        client.force_login(dev_user)
+        res = client.post(f"/environments/{environment.id}/groups/Old/rename/", HTTP_HX_PROMPT="New")
+        assert res.status_code == 403

@@ -378,6 +378,57 @@ def reorder_variables(*, environment_id, user, ordered_keys: list[str]) -> None:
           project=environment.project, environment=environment)
 
 
+def swap_variable_order(*, environment_id, user, key, direction: str) -> None:
+    """Moves one variable one slot up/down in display order by swapping it
+    with its immediate neighbor. A thin, UI-friendly wrapper around
+    reorder_variables (no separate 'group move' concept — see DATA_MODEL.md:
+    group is just Variable.group_name, so moving a variable across the group
+    boundary at its neighbor also changes which group it displays under)."""
+    if direction not in ("up", "down"):
+        raise ValidationError(f"invalid direction: {direction!r} (must be 'up' or 'down')")
+    environment = Environment.objects.select_for_update().get(pk=environment_id)
+    keys = list(environment.variables.order_by("order").values_list("key", flat=True))
+    if key not in keys:
+        raise NotFound(f"variable not found: {key}")
+    i = keys.index(key)
+    j = i - 1 if direction == "up" else i + 1
+    if 0 <= j < len(keys):
+        keys[i], keys[j] = keys[j], keys[i]
+        reorder_variables(environment_id=environment_id, user=user, ordered_keys=keys)
+
+
+@transaction.atomic
+def rename_group(*, environment_id, user, old_name, new_name) -> int:
+    """Bulk-renames a group by updating group_name on every variable
+    currently in it. There's no separate Group row to rename (see
+    DATA_MODEL.md) — a group only exists as long as at least one variable
+    references its name. Metadata-only: no revision bump, no file rewrite,
+    allowed while locked. Returns the number of variables updated."""
+    if not new_name.strip():
+        raise ValidationError("new group name cannot be empty")
+    environment = Environment.objects.select_for_update().get(pk=environment_id)
+    updated = environment.variables.filter(group_name=old_name).update(group_name=new_name)
+    if updated:
+        audit(user=user, action=AuditLog.Action.UPDATE, target=f"rename_group:{old_name}->{new_name}",
+              project=environment.project, environment=environment)
+    return updated
+
+
+@transaction.atomic
+def ungroup(*, environment_id, user, group_name) -> int:
+    """Removes every variable in group_name from display grouping
+    (group_name -> ""), i.e. 'delete this group, keep its variables' —
+    per envdoc.py's delete_group(keep_children=True) semantics. There's
+    nothing else to delete since a group is just a shared group_name value.
+    Returns the number of variables updated."""
+    environment = Environment.objects.select_for_update().get(pk=environment_id)
+    updated = environment.variables.filter(group_name=group_name).update(group_name="")
+    if updated:
+        audit(user=user, action=AuditLog.Action.UPDATE, target=f"ungroup:{group_name}",
+              project=environment.project, environment=environment)
+    return updated
+
+
 def _leading_comment_for(container, index: int) -> str:
     """Text of the contiguous run of Comment siblings immediately preceding
     index in container.children (no Blank/other node between them and the
