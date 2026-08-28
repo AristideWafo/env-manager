@@ -457,6 +457,39 @@ def batch_variables(request, environment_id: uuid.UUID, payload: BatchIn):
     })
 
 
+class ReorderVariablesIn(Schema):
+    keys: list[str]
+
+
+@variables_router.post("/environments/{environment_id}/variables/reorder")
+def reorder_variables(request, environment_id: uuid.UUID, payload: ReorderVariablesIn):
+    # NB: must stay registered before /variables/{key} routes below — same
+    # reason as /variables/batch above (Django resolves patterns in
+    # registration order; {key} would otherwise swallow "reorder").
+    environment = _get_environment_checked(request, environment_id, "write")
+    services.reorder_variables(environment_id=environment.id, user=request.user, ordered_keys=payload.keys)
+    return envelope({
+        "variables": [services.serialize_variable(v) for v in environment.variables.all().order_by("order")],
+    })
+
+
+class UpdateLayoutIn(Schema):
+    group: Optional[str] = None
+    comment: Optional[str] = None
+
+
+@variables_router.patch("/environments/{environment_id}/variables/{key}/layout")
+def update_variable_layout(request, environment_id: uuid.UUID, key: str, payload: UpdateLayoutIn):
+    # Display metadata only (core/envdoc.py) — no revision/lock semantics, so
+    # write permission is the only check (no locked_for_deploy gate).
+    environment = _get_environment_checked(request, environment_id, "write")
+    var = services.update_variable_layout(
+        environment_id=environment.id, user=request.user, key=key,
+        group_name=payload.group, leading_comment=payload.comment,
+    )
+    return envelope(services.serialize_variable(var))
+
+
 @variables_router.patch("/environments/{environment_id}/variables/{key}")
 def update_variable(request, environment_id: uuid.UUID, key: str, payload: UpdateVariableIn):
     environment = _get_environment_checked(request, environment_id, "write")
