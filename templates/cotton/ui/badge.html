@@ -1,0 +1,3 @@
+{% load ui_extras %}<c-vars tone="slate" class="" />
+{% comment %}<c-ui.badge tone="slate|indigo|emerald|amber|rose">Text</c-ui.badge>{% endcomment %}
+<span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium {{ tone|badge_tone }} {{ class }}" {{ attrs }}>{{ slot }}</span>
