@@ -1,0 +1,83 @@
+{% load static %}<c-vars title="Env Manager" heading="" subheading="" />
+{% comment %}
+Full page shell for authenticated views: sidebar nav + topbar + content slot.
+<c-layouts.app title="Dashboard — Env Manager" heading="Projects" subheading="...">
+  <c-slot name="actions">optional buttons next to the heading</c-slot>
+  ...page content...
+</c-layouts.app>
+{% endcomment %}
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>{{ title }}</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="{% static 'js/webauthn.js' %}" defer></script>
+</head>
+<body class="h-full bg-slate-950 text-slate-100 antialiased">
+  <div class="flex h-full min-h-screen">
+    <aside class="hidden md:flex md:w-60 md:flex-col shrink-0 border-r border-slate-800 bg-slate-950/60">
+      <div class="flex items-center gap-2 px-5 py-5">
+        <div class="rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 p-1.5 shadow-lg shadow-indigo-950/50">
+          <c-icon.shield class="w-5 h-5 text-white" />
+        </div>
+        <span class="font-semibold tracking-tight">Env Manager</span>
+      </div>
+      <nav class="flex-1 px-3 space-y-1">
+        <a href="{% url 'core:dashboard' %}"
+           class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white transition-colors">
+          <c-icon.folder class="w-5 h-5" /> Projects
+        </a>
+        {% if user.is_authenticated and user.is_admin %}
+        <a href="/admin/"
+           class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white transition-colors">
+          <c-icon.shield class="w-5 h-5" /> Admin
+        </a>
+        {% endif %}
+      </nav>
+      {% if user.is_authenticated %}
+      <div class="border-t border-slate-800 p-3">
+        <div class="flex items-center justify-between gap-2 rounded-lg px-2 py-2">
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-slate-200 truncate">{{ user.display_name|default:user.email }}</p>
+            <p class="text-xs text-slate-500 truncate">{{ user.role|title }}</p>
+          </div>
+          <a href="{% url 'core:logout' %}" title="Log out" class="shrink-0 text-slate-500 hover:text-white transition-colors">
+            <c-icon.logout class="w-5 h-5" />
+          </a>
+        </div>
+      </div>
+      {% endif %}
+    </aside>
+
+    <div class="flex-1 min-w-0 flex flex-col">
+      <header class="flex items-center justify-between gap-4 border-b border-slate-800 px-4 md:px-8 py-4">
+        <div class="min-w-0">
+          {% if heading %}<h1 class="text-lg font-semibold text-slate-100 truncate">{{ heading }}</h1>{% endif %}
+          {% if subheading %}<p class="text-sm text-slate-500 truncate">{{ subheading }}</p>{% endif %}
+        </div>
+        <div class="flex items-center gap-3 shrink-0">
+          {{ actions }}
+          <a href="{% url 'core:logout' %}" class="md:hidden text-slate-500 hover:text-white">
+            <c-icon.logout class="w-5 h-5" />
+          </a>
+        </div>
+      </header>
+
+      <main class="flex-1 px-4 md:px-8 py-6 max-w-5xl w-full mx-auto">
+        {% if messages %}
+        <div class="mb-4 space-y-2">
+          {% for message in messages %}
+          <c-ui.alert tone="{% if message.tags == 'error' %}error{% else %}success{% endif %}">{{ message }}</c-ui.alert>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {{ slot }}
+      </main>
+    </div>
+  </div>
+</body>
+</html>

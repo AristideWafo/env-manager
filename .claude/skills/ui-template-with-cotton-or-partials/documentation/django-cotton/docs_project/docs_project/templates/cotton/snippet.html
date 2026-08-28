@@ -1,0 +1,123 @@
+{% load custom_tags force_escape %}
+
+<c-vars
+    language="django"
+    rounded="rounded-box"
+    ignore_syntax_choice
+    :hide_label="False"
+    :flipped="False"
+    :padded_top="False"
+    :hide_copy="False"
+    box_class="bg-white dark:bg-ink-800"
+    pre_class="flex-1 flex flex-col !leading-[1.7rem] !p-0 !m-0 rounded-none !bg-transparent !text-[13.5px]"
+    code_class="flex-1 !pb-4 !px-6 !m-0 !bg-transparent !text-[13.5px] !leading-[1.7rem]"
+/>
+
+<div class="group relative mb-3 flex-1 flex flex-col justify-start w-full overflow-hidden border border-ink-200 dark:border-ink-700 {{ box_class }} {{ rounded }}"
+     x-data="{% verbatim %}{
+        get currentCode() {
+            const htmlCode = $refs.htmlCode;
+            const templateCode = $refs.templateCode;
+            if ($store.syntaxPreference === 'html' && htmlCode) {
+                return htmlCode.innerText;
+            } else if (templateCode) {
+                return templateCode.innerText;
+            }
+            return '';
+        },
+        copy() {
+            const text = this.currentCode;
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text)
+            } else {
+                this.unsecuredCopyToClipboard(text)
+            }
+        },
+        unsecuredCopyToClipboard(text) {
+          const textArea = document.createElement('textarea');
+          textArea.value = text;
+          document.body.appendChild(textArea);
+          textArea.select();
+          try {
+            document.execCommand('copy');
+          } catch (err) {
+            console.error('Unable to copy to clipboard', err);
+          }
+          document.body.removeChild(textArea);
+        }
+    }{% endverbatim %}"
+    x-init="{% verbatim %}
+        $watch('$store.syntaxPreference', () => {
+            setTimeout(() => hljs.highlightAll(), 50);
+        });
+    {% endverbatim %}"
+>
+    {% if flipped and preview %}
+        <div class="px-6 py-6 bg-white prose-headings:text-ink-800 dark:!text-ink-800 rounded-t-xl border-b border-ink-200 dark:border-ink-700">
+            <div class="text-sm text-ink-400 font-semibold uppercase tracking-wider pb-3">preview</div>
+            <div class="light">{{ preview }}</div>
+        </div>
+    {% endif %}
+
+    <!-- Top bar: snippet label (left) + syntax switcher & copy (right), vertically centered together -->
+    <div class="absolute left-0 top-0 w-full px-5 pt-3 flex items-center justify-between">
+        {% if label and not hide_label %}
+            <div class="text-sm text-ink-500 font-semibold">{{ label }}</div>
+        {% else %}
+            <div></div>
+        {% endif %}
+
+        <div class="flex items-center gap-3">
+            {% if "<c-" in slot and not ignore_syntax_choice %}
+                <div class="inline-flex items-center gap-0.5 font-mono">
+                    <button
+                        @click="$store.syntaxPreference = 'html'"
+                        class="cursor-pointer py-0 text-[12px] transition-all duration-200 rounded-md"
+                        :class="$store.syntaxPreference === 'html'
+                            ? 'text-accent'
+                            : 'text-ink-500 hover:text-ink-700 dark:text-ink-400 dark:hover:text-ink-300'"
+                    >
+                        c-tags
+                    </button>
+                    <span class="px-1.5 text-ink-300 dark:text-ink-600 select-none" aria-hidden="true">|</span>
+                    <button
+                        @click="$store.syntaxPreference = 'template'"
+                        class="cursor-pointer py-0 text-[12px] transition-all duration-200 rounded-md"
+                        :class="$store.syntaxPreference === 'template'
+                            ? 'text-accent'
+                            : 'text-ink-500 hover:text-ink-700 dark:text-ink-400 dark:hover:text-ink-300'"
+                    >
+                        DTL
+                    </button>
+                </div>
+            {% endif %}
+            {% if not hide_copy %}
+            <button @click.prevent="copy" class="transition-opacity text-ink-500 duration-200 hover:text-ink-700 dark:hover:text-ink-300">
+                <c-icons.copy class="size-[1.1rem]" />
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if "<c-" in slot and not ignore_syntax_choice %}
+        <!-- HTML Syntax Version -->
+        <div x-show="$store.syntaxPreference === 'html'">
+            <pre class="{{ pre_class }}"><code x-ref="htmlCode" class="language-{{ language }} {{ code_class }} !pt-12">{{ slot|strip }}</code></pre>
+        </div>
+
+        <!-- Template Tag Syntax Version -->
+        <div x-show="$store.syntaxPreference === 'template'">
+            <pre class="{{ pre_class }}"><code x-ref="templateCode" class="language-{{ language }} {{ code_class }} !pt-12">{{ slot|strip|to_template_tags }}</code></pre>
+        </div>
+    {% else %}
+        <!-- No Cotton tags OR ignore-syntax-choice is set - show single static version -->
+        <pre class="{{ pre_class }}"><code x-ref="htmlCode" class="language-{{ language }} {{ code_class }} {% if label and not hide_label or padded_top %}!pt-12{% else %}!pt-4{% endif %}">{{ slot|strip }}</code></pre>
+    {% endif %}
+
+    {% if preview and not flipped %}
+        <div class="text-base px-6 py-6 bg-white prose-headings:text-ink-800 dark:!text-ink-800 border-t border-ink-200 dark:border-ink-700">
+            <div class="text-sm text-ink-400 font-semibold uppercase tracking-wider pb-3">preview</div>
+            <div class="light">{{ preview }}</div>
+        </div>
+    {% endif %}
+</div>

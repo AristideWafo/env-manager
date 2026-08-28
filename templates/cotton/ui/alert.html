@@ -1,0 +1,6 @@
+{% load ui_extras %}<c-vars tone="error" class="" />
+{% comment %}<c-ui.alert tone="error|success">message</c-ui.alert>{% endcomment %}
+<div class="flex items-start gap-2 rounded-lg border px-3 py-2.5 text-sm {{ tone|alert_tone }} {{ class }}" {{ attrs }}>
+  {% if tone == "success" %}<c-icon.check_circle class="w-5 h-5 shrink-0 mt-0.5" />{% else %}<c-icon.x_circle class="w-5 h-5 shrink-0 mt-0.5" />{% endif %}
+  <div>{{ slot }}</div>
+</div>

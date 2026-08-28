@@ -1,0 +1,16 @@
+{% load ui_extras %}<c-vars variant="secondary" size="md" href="" type="button" class="" />
+{% comment %}
+Usage:
+  <c-ui.button variant="primary|secondary|danger|ghost" size="sm|md" href="/optional/link" class="extra-classes">Label</c-ui.button>
+  htmx attrs pass straight through via {{ attrs }}: <c-ui.button hx-get="..." hx-target="...">Edit</c-ui.button>
+  ("class" is declared above so it's excluded from {{ attrs }} and merged in explicitly instead.)
+{% endcomment %}
+{% if href %}
+<a href="{{ href }}"
+   class="inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-950 {{ variant|button_tone }} {{ size|button_size }} {{ class }}"
+   {{ attrs }}>{{ slot }}</a>
+{% else %}
+<button type="{{ type }}"
+   class="inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-950 {{ variant|button_tone }} {{ size|button_size }} {{ class }}"
+   {{ attrs }}>{{ slot }}</button>
+{% endif %}

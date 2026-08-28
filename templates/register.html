@@ -1,0 +1,34 @@
+<c-layouts.auth title="Register passkey — Env Manager">
+  <h1 class="text-lg font-semibold text-center mb-1">Register your passkey</h1>
+  <p class="text-sm text-slate-500 text-center mb-6">Paste the invitation link your admin sent you.</p>
+
+  <div class="space-y-4">
+    <div>
+      <label for="token" class="block text-sm font-medium text-slate-300 mb-1.5">Invitation token</label>
+      <input id="token" type="text" value="{{ token }}" placeholder="eyJ1c2VyIjo..."
+             class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2.5 text-sm font-mono placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+    </div>
+    <div>
+      <label for="label" class="block text-sm font-medium text-slate-300 mb-1.5">Device label</label>
+      <input id="label" type="text" placeholder="e.g. Work laptop"
+             class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2.5 text-sm placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+    </div>
+    <c-ui.button id="register-btn" variant="primary" class="w-full">
+      <c-icon.key class="w-4 h-4" /> Register device
+    </c-ui.button>
+    <div id="msg"></div>
+  </div>
+</c-layouts.auth>
+<script>
+  document.getElementById("register-btn").addEventListener("click", async () => {
+    const token = document.getElementById("token").value.trim();
+    const label = document.getElementById("label").value.trim();
+    const msg = document.getElementById("msg");
+    try {
+      await registerPasskey(token, label);
+      msg.innerHTML = `<div class="rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-sm px-3 py-2">Passkey registered — you can now log in.</div>`;
+    } catch (e) {
+      msg.innerHTML = `<div class="rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-300 text-sm px-3 py-2">${e.message || "registration failed"}</div>`;
+    }
+  });
+</script>

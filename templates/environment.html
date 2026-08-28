@@ -1,0 +1,27 @@
+<c-layouts.app title="{{ environment }} — Env Manager" heading="{{ environment.project.name }} / {{ environment.name }}"
+               subheading="Revision {{ environment.revision }}{% if environment.locked_for_deploy %} · locked for deploy{% endif %}">
+  <c-slot name="actions">
+    <c-ui.button variant="ghost" size="sm" href="{% url 'core:dashboard' %}">&larr; Projects</c-ui.button>
+    <c-ui.button variant="secondary" size="sm" href="{% url 'core:revisions' environment.id %}">
+      <c-icon.history class="w-4 h-4" /> History
+    </c-ui.button>
+  </c-slot>
+
+  {% if environment.locked_for_deploy %}
+  <c-ui.alert tone="error" class="mb-4">
+    This environment is locked for deploy — the CI/CD pipeline is currently writing/reading it. Changes are blocked until it unlocks.
+  </c-ui.alert>
+  {% endif %}
+
+  <c-ui.card title="Variables" subtitle="Secrets are masked by default — reveal explicitly when needed.">
+    <c-slot name="actions">
+      {% if can_write %}
+      <c-ui.button variant="primary" size="sm"
+                   hx-get="{% url 'core:variable_create' environment.id %}" hx-target="#variables-table" hx-swap="outerHTML">
+        <c-icon.plus class="w-4 h-4" /> Add variable
+      </c-ui.button>
+      {% endif %}
+    </c-slot>
+    {% include "_variables_table.html" %}
+  </c-ui.card>
+</c-layouts.app>

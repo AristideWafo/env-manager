@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "env-manager",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "source .venv/bin/activate && python manage.py runserver 0.0.0.0:8000"],
+      "port": 8000
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+<div id="variables-table">
+<form hx-post="{% url 'core:variable_edit' environment.id var.key %}" hx-target="#variables-table" hx-swap="outerHTML"
+      class="space-y-3 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+  {% csrf_token %}
+  <div class="font-mono text-sm text-slate-300">{{ var.key }}</div>
+  <div>
+    <label class="block text-xs font-medium text-slate-400 mb-1">Value</label>
+    {% if not var.is_secret %}
+    <input name="value" value="{{ var.value }}"
+           class="w-full font-mono text-sm rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+    {% else %}
+    <input name="value" placeholder="new secret value"
+           class="w-full font-mono text-sm rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+    {% endif %}
+  </div>
+  <input type="hidden" name="revision" value="{{ environment.revision }}">
+  <label class="flex items-center gap-2 text-sm text-slate-400">
+    <input type="checkbox" name="is_secret" {% if var.is_secret %}checked{% endif %}
+           class="rounded border-slate-600 bg-slate-950 text-indigo-500 focus:ring-indigo-500"> secret
+  </label>
+  <div class="flex gap-2 pt-1">
+    <c-ui.button variant="primary" size="sm" type="submit">Save</c-ui.button>
+    <c-ui.button variant="ghost" size="sm" href="{% url 'core:environment' environment.id %}">Cancel</c-ui.button>
+  </div>
+</form>
+</div>
