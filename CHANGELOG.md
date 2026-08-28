@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Entries are
 generated automatically from conventional commits by the release pipeline.
 
 <!-- entries below are prepended automatically, newest first -->
+## v0.12.1 - 2026-08-28
+
+### [0.12.1](https://github.com/AristideWafo/env-manager/compare/v0.12.0...v0.12.1) (2026-08-28)
+
+
+### Bug Fixes
+
+* **ui:** remove content ghost-gap, stabilize variables table columns ([#16](https://github.com/AristideWafo/env-manager/issues/16)) ([84ad96b](https://github.com/AristideWafo/env-manager/commit/84ad96bad0fecad8e4f19014d2b9d45d79c0aa0a))
+
 ## v0.12.0 - 2026-08-28
 
 ## [0.12.0](https://github.com/AristideWafo/env-manager/compare/v0.11.0...v0.12.0) (2026-08-28)
