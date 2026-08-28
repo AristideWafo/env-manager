@@ -5,9 +5,8 @@ client-side idle timer rendered into every authenticated page
 (templates/cotton/layouts/app.html).
 """
 
-from django.conf import settings
-
 import pytest
+from django.conf import settings
 
 
 def test_session_expires_after_ten_minutes_of_idle():
