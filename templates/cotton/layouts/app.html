@@ -20,14 +20,28 @@ Full page shell for authenticated views: sidebar nav + topbar + content slot.
 </head>
 <body class="h-full bg-slate-950 text-slate-100 antialiased">
   <div class="flex h-full min-h-screen">
-    <aside class="hidden md:flex md:w-60 md:flex-col shrink-0 border-r border-slate-800 bg-slate-950/60">
-      <div class="flex items-center gap-2 px-5 py-5">
-        <div class="rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 p-1.5 shadow-lg shadow-indigo-950/50">
-          <c-icon.shield class="w-5 h-5 text-white" />
+    <div id="sidebar-backdrop"
+         class="fixed inset-0 z-30 bg-black/60 hidden md:hidden"
+         onclick="document.getElementById('sidebar').classList.add('-translate-x-full'); document.getElementById('sidebar-backdrop').classList.add('hidden');"></div>
+
+    <aside id="sidebar"
+           class="fixed inset-y-0 left-0 z-40 w-64 -translate-x-full transition-transform duration-200 ease-in-out
+                  md:static md:translate-x-0 md:w-60 md:shrink-0
+                  flex flex-col border-r border-slate-800 bg-slate-950 md:bg-slate-950/60">
+      <div class="flex items-center justify-between gap-2 px-5 py-5">
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 p-1.5 shadow-lg shadow-indigo-950/50 shrink-0">
+            <c-icon.shield class="w-5 h-5 text-white" />
+          </div>
+          <span class="font-semibold tracking-tight truncate">Env Manager</span>
         </div>
-        <span class="font-semibold tracking-tight">Env Manager</span>
+        <button type="button" title="Close menu" aria-label="Close menu"
+                class="md:hidden shrink-0 text-slate-500 hover:text-white"
+                onclick="document.getElementById('sidebar').classList.add('-translate-x-full'); document.getElementById('sidebar-backdrop').classList.add('hidden');">
+          <c-icon.x class="w-5 h-5" />
+        </button>
       </div>
-      <nav class="flex-1 px-3 space-y-1">
+      <nav class="flex-1 px-3 space-y-1 overflow-y-auto">
         <a href="{% url 'core:dashboard' %}"
            class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white transition-colors">
           <c-icon.folder class="w-5 h-5" /> Projects
@@ -56,9 +70,16 @@ Full page shell for authenticated views: sidebar nav + topbar + content slot.
 
     <div class="flex-1 min-w-0 flex flex-col">
       <header class="flex items-center justify-between gap-4 border-b border-slate-800 px-4 md:px-8 py-4">
-        <div class="min-w-0">
-          {% if heading %}<h1 class="text-lg font-semibold text-slate-100 truncate">{{ heading }}</h1>{% endif %}
-          {% if subheading %}<p class="text-sm text-slate-500 truncate">{{ subheading }}</p>{% endif %}
+        <div class="flex items-center gap-3 min-w-0">
+          <button type="button" title="Open menu" aria-label="Open menu"
+                  class="md:hidden shrink-0 text-slate-400 hover:text-white"
+                  onclick="document.getElementById('sidebar').classList.remove('-translate-x-full'); document.getElementById('sidebar-backdrop').classList.remove('hidden');">
+            <c-icon.menu class="w-5 h-5" />
+          </button>
+          <div class="min-w-0">
+            {% if heading %}<h1 class="text-lg font-semibold text-slate-100 truncate">{{ heading }}</h1>{% endif %}
+            {% if subheading %}<p class="text-sm text-slate-500 truncate">{{ subheading }}</p>{% endif %}
+          </div>
         </div>
         <div class="flex items-center gap-3 shrink-0">
           {{ actions }}
@@ -68,7 +89,7 @@ Full page shell for authenticated views: sidebar nav + topbar + content slot.
         </div>
       </header>
 
-      <main class="flex-1 px-4 md:px-8 py-6 max-w-5xl w-full mx-auto">
+      <main class="flex-1 min-w-0 px-4 md:px-8 py-6 max-w-5xl w-full mx-auto">
         {% if messages %}
         <div class="mb-4 space-y-2">
           {% for message in messages %}
