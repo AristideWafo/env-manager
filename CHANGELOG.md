@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Entries are
 generated automatically from conventional commits by the release pipeline.
 
 <!-- entries below are prepended automatically, newest first -->
+## v0.7.1 - 2026-08-28
+
+### [0.7.1](https://github.com/AristideWafo/env-manager/compare/v0.7.0...v0.7.1) (2026-08-28)
+
+
+### Bug Fixes
+
+* **static:** use non-manifest static storage in DEBUG to avoid requiring collectstatic locally ([2d3e5ec](https://github.com/AristideWafo/env-manager/commit/2d3e5ec424748c305b3cf88c8beeaa41c587e0be))
+
 ## v0.7.0 - 2026-08-28
 
 ## [0.7.0](https://github.com/AristideWafo/env-manager/compare/v0.6.0...v0.7.0) (2026-08-28)
