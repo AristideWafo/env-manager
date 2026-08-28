@@ -14,6 +14,19 @@ class TestVariableFormsSetLayout:
         assert var.group_name == "Database"
         assert var.leading_comment == "the db host"
 
+    def test_create_with_group_writes_it_to_file_on_first_submit(self, client, dev_read_write, environment, tmp_root):
+        """Regression: the file used to be written before the group was
+        assigned (two separate service calls) — group never made it in
+        until an unrelated later edit."""
+        client.force_login(dev_read_write)
+        client.post(
+            f"/environments/{environment.id}/variables/new/",
+            {"key": "DB_HOST", "value": "postgres", "group": "Database", "comment": "the db host"},
+        )
+        written = (tmp_root / ".env").read_text()
+        assert "Database" in written
+        assert "the db host" in written
+
     def test_create_without_group_or_comment_leaves_them_blank(self, client, dev_read_write, environment):
         client.force_login(dev_read_write)
         client.post(f"/environments/{environment.id}/variables/new/", {"key": "A", "value": "1"})
@@ -34,6 +47,22 @@ class TestVariableFormsSetLayout:
         var = environment.variables.get(key="A")
         assert var.group_name == "Custom"
         assert var.leading_comment == "note"
+
+    def test_edit_group_change_writes_it_to_file_on_same_submit(self, client, dev_read_write, environment, tmp_root):
+        """Regression: update_variable (writes the file) used to run before
+        update_variable_layout (doesn't write) — the file kept the OLD
+        group until an unrelated later edit."""
+        from core import services
+        client.force_login(dev_read_write)
+        services.create_variable(environment_id=environment.id, user=dev_read_write, key="A", value="1", is_secret=False)
+        environment.refresh_from_db()
+        client.post(
+            f"/environments/{environment.id}/variables/A/edit/",
+            {"value": "1", "revision": environment.revision, "group": "Custom", "comment": "note"},
+        )
+        written = (tmp_root / ".env").read_text()
+        assert "Custom" in written
+        assert "note" in written
 
     def test_edit_clearing_the_field_clears_it_on_the_variable(self, client, dev_read_write, environment):
         from core import services
@@ -166,4 +195,30 @@ class TestEnvironmentFullPageRender:
     def test_forbidden_without_read_permission(self, client, dev_user, environment):
         client.force_login(dev_user)
         res = client.get(f"/environments/{environment.id}/")
+        assert res.status_code == 403
+
+
+@pytest.mark.django_db
+class TestEnvironmentRefreshView:
+    def test_imports_new_keys_and_rerenders_table(self, client, dev_read_write, environment, tmp_root):
+        client.force_login(dev_read_write)
+        (tmp_root / ".env").write_text("A=1\nB=2\n")
+        res = client.post(f"/environments/{environment.id}/refresh/")
+        assert res.status_code == 200
+        assert environment.variables.count() == 2
+        assert "A" in res.content.decode()
+
+    def test_is_additive_does_not_overwrite_tracked_value(self, client, dev_read_write, environment, tmp_root):
+        from core import services
+        client.force_login(dev_read_write)
+        services.create_variable(environment_id=environment.id, user=dev_read_write, key="A", value="from-db", is_secret=False)
+        (tmp_root / ".env").write_text("A=from-disk\n")
+        client.post(f"/environments/{environment.id}/refresh/")
+        assert environment.variables.get(key="A").value == "from-db"
+
+    def test_requires_write_permission(self, client, dev_user, environment):
+        from core.models import Permission
+        Permission.objects.create(user=dev_user, environment=environment, can_read=True)
+        client.force_login(dev_user)
+        res = client.post(f"/environments/{environment.id}/refresh/")
         assert res.status_code == 403

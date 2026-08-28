@@ -77,8 +77,8 @@ DELETE /environments/{id}/permissions/{userId} → révoque
 GET    /environments/{id}/variables
   → liste les variables. Les variables is_secret=true sont retournées avec value: null, secret: true.
   Chaque variable inclut aussi group ("" si hors groupe), comment ("" si aucun), order (int) —
-  métadonnées d'affichage du structured editor (core/envdoc.py), jamais consultées par le fichier
-  .env écrit sur disque (voir DATA_MODEL.md).
+  métadonnées du structured editor (core/envdoc.py) qui déterminent aussi la structure du
+  fichier .env écrit sur disque (voir DATA_MODEL.md).
 
 POST   /environments/{id}/variables
   body: { key, value, is_secret }
@@ -99,6 +99,14 @@ POST   /environments/{id}/variables/batch
 POST   /environments/{id}/variables/{key}/reveal
   → révèle temporairement la valeur d'un secret. Auditée (UC-22).
 
+POST   /environments/{id}/variables/import
+  → relit le fichier .env sur disque et importe les clés qui n'existent pas encore en DB
+  (import_variables_from_file). Additive uniquement : une clé déjà trackée n'est jamais
+  écrasée, même si sa valeur a changé sur disque — la DB reste la source de vérité pour
+  ce qui est déjà tracké (AGENT_CONTEXT.md §5). Capture group/comment/order depuis le
+  fichier via core/envdoc.py. Nécessite WRITE. Ne bump pas revision, ne réécrit pas le
+  fichier (son contenu vient d'être lu, il est déjà à jour).
+
 PATCH  /environments/{id}/variables/{key}/layout
   body: { group?, comment? }
   → modifie le groupe d'affichage et/ou le commentaire d'une variable. Nécessite WRITE.
@@ -109,7 +117,8 @@ PATCH  /environments/{id}/variables/{key}/layout
 POST   /environments/{id}/variables/reorder
   body: { keys: [string, ...] }
   → réordonne les variables selon la liste fournie, qui doit contenir exactement les clés
-  actuelles de l'environnement (chacune une fois), sinon VALIDATION_ERROR. Nécessite WRITE.
+  actuelles de l'environnement (chacune une fois), sinon VALIDATION_ERROR. Rejette aussi (même
+  code) un ordre qui casserait la contiguïté d'un groupe — voir DATA_MODEL.md. Nécessite WRITE.
   Même règle que /layout : pas de revision, pas de réécriture fichier, autorisé si verrouillé.
 
 POST   /environments/{id}/variables/{key}/move

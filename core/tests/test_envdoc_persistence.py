@@ -46,19 +46,43 @@ def test_import_preserves_document_order(environment, admin_user, tmp_root):
 
 
 @pytest.mark.django_db
-def test_import_does_not_change_written_file_format(environment, admin_user, tmp_root):
-    """The structural metadata captured on import must never leak into
-    write_environment_file's output — that stays the canonical
-    always-quoted, alphabetically-sorted format regardless of import."""
+def test_import_then_write_preserves_group_and_comment_structure(environment, admin_user, tmp_root):
+    """Structural metadata captured on import DOES feed the next write
+    (envfile.render_document) — that's the point of the structured editor.
+    Confirmed decision (see DATA_MODEL.md): this replaced the earlier
+    always-quoted/alphabetical-only guarantee."""
     (tmp_root / ".env").write_text(FIXTURE.read_text())
     services.import_variables_from_file(environment_id=environment.id, user=admin_user)
-    services.create_variable(environment_id=environment.id, user=admin_user, key="ZZZ", value="1", is_secret=False)
+    # Any value edit triggers _bump_revision_and_write, re-rendering the file
+    # from current DB state (group/comment/order included).
+    services.update_variable(
+        environment_id=environment.id, user=admin_user, key="DJANGO_DEBUG",
+        value="1", revision=environment.revision,
+    )
     written = (tmp_root / ".env").read_text()
-    lines = [ln for ln in written.splitlines() if ln]
-    keys = [ln.split("=", 1)[0] for ln in lines]
-    assert keys == sorted(keys)  # still alphabetical
-    assert all(ln.split("=", 1)[1].startswith('"') for ln in lines)  # still always-quoted
-    assert "---" not in written and "#" not in written  # groups/comments never written
+    assert "Django" in written  # group header made it into the file
+    assert "Comma-separated list of hostnames" in written  # leading comment too
+
+    from core import envdoc
+    doc = envdoc.parse(written)
+    group_names = [n.name for n in doc.children if isinstance(n, envdoc.Group)]
+    assert "Django" in group_names
+    assert doc.find_variable("DJANGO_DEBUG").value == "1"
+    assert envdoc.validate(doc) == []
+
+
+@pytest.mark.django_db
+def test_write_never_splits_a_group_across_two_blocks(environment, admin_user, tmp_root):
+    (tmp_root / ".env").write_text(FIXTURE.read_text())
+    services.import_variables_from_file(environment_id=environment.id, user=admin_user)
+    services.update_variable(
+        environment_id=environment.id, user=admin_user, key="DJANGO_DEBUG",
+        value="1", revision=environment.revision,
+    )
+    written = (tmp_root / ".env").read_text()
+    from core import envdoc
+    group_names = [n.name for n in envdoc.parse(written).children if isinstance(n, envdoc.Group)]
+    assert len(group_names) == len(set(group_names))  # each group name appears once
 
 
 @pytest.mark.django_db
@@ -238,3 +262,122 @@ def test_ungroup_does_not_delete_variables(environment, admin_user):
     services.update_variable_layout(environment_id=environment.id, user=admin_user, key="A", group_name="G")
     services.ungroup(environment_id=environment.id, user=admin_user, group_name="G")
     assert environment.variables.filter(key="A").exists()
+
+
+# --- group-contiguity invariant ----------------------------------------------
+
+def _make(environment, admin_user, keys, groups=None):
+    """Creates `keys` in order, optionally assigning groups (dict key->group)."""
+    groups = groups or {}
+    for k in keys:
+        services.create_variable(environment_id=environment.id, user=admin_user, key=k, value="1", is_secret=False)
+    for k, g in groups.items():
+        services.update_variable_layout(environment_id=environment.id, user=admin_user, key=k, group_name=g)
+
+
+@pytest.mark.django_db
+def test_reorder_rejects_split_group(environment, admin_user):
+    _make(environment, admin_user, ["A", "B", "C"], groups={"A": "G", "C": "G"})
+    # A and C are in G; the current write already keeps them contiguous
+    # (update_variable_layout repositions). Directly ask for a split order:
+    with pytest.raises(services.ValidationError):
+        services.reorder_variables(environment_id=environment.id, user=admin_user, ordered_keys=["A", "B", "C"])
+
+
+@pytest.mark.django_db
+def test_update_variable_layout_repositions_to_stay_contiguous(environment, admin_user):
+    _make(environment, admin_user, ["A", "B", "C", "D"], groups={"A": "G", "B": "G"})
+    # C sits between the group members (order 2) and D after (order 3);
+    # assigning C to G must not leave G split as [A,B]...[C] elsewhere —
+    # it must land adjacent to the existing G block.
+    services.update_variable_layout(environment_id=environment.id, user=admin_user, key="D", group_name="G")
+    keys_in_order = list(environment.variables.order_by("order").values_list("key", flat=True))
+    g_positions = [i for i, k in enumerate(keys_in_order) if k in ("A", "B", "D")]
+    assert g_positions == list(range(min(g_positions), max(g_positions) + 1))  # contiguous
+
+
+@pytest.mark.django_db
+def test_swap_variable_order_never_splits_a_group(environment, admin_user):
+    _make(environment, admin_user, ["X", "A", "B", "C", "Y"], groups={"A": "G", "B": "G", "C": "G"})
+    # X is right before the G block; moving X down must jump the whole
+    # block (X ends up after C), never land inside it.
+    services.swap_variable_order(environment_id=environment.id, user=admin_user, key="X", direction="down")
+    keys_in_order = list(environment.variables.order_by("order").values_list("key", flat=True))
+    assert keys_in_order.index("X") not in range(
+        keys_in_order.index("A") + 1, keys_in_order.index("C") + 1
+    )
+    g_positions = sorted(keys_in_order.index(k) for k in ("A", "B", "C"))
+    assert g_positions == list(range(min(g_positions), max(g_positions) + 1))
+
+
+@pytest.mark.django_db
+def test_swap_variable_order_moves_within_group(environment, admin_user):
+    _make(environment, admin_user, ["A", "B", "C"], groups={"A": "G", "B": "G", "C": "G"})
+    services.swap_variable_order(environment_id=environment.id, user=admin_user, key="C", direction="up")
+    keys_in_order = list(environment.variables.order_by("order").values_list("key", flat=True))
+    assert keys_in_order == ["A", "C", "B"]
+
+
+@pytest.mark.django_db
+def test_import_merges_new_members_into_existing_group_block(environment, admin_user, tmp_root):
+    # Pre-existing tracked variable already in group "G", positioned early.
+    _make(environment, admin_user, ["A", "Z"], groups={"A": "G"})
+    (tmp_root / ".env").write_text("# --- G ---\nA=1\nNEWVAR=2\n")
+    services.import_variables_from_file(environment_id=environment.id, user=admin_user)
+    keys_in_order = list(environment.variables.order_by("order").values_list("key", flat=True))
+    g_positions = sorted(
+        i for i, k in enumerate(keys_in_order)
+        if environment.variables.get(key=k).group_name == "G"
+    )
+    assert g_positions == list(range(min(g_positions), max(g_positions) + 1))
+
+
+# --- refresh from file (manual re-import) ------------------------------------
+
+@pytest.mark.django_db
+def test_import_variables_from_file_is_reusable_manually(environment, admin_user, tmp_root):
+    (tmp_root / ".env").write_text("A=1\n")
+    n1 = services.import_variables_from_file(environment_id=environment.id, user=admin_user)
+    assert n1 == 1
+    (tmp_root / ".env").write_text("A=1\nB=2\n")
+    n2 = services.import_variables_from_file(environment_id=environment.id, user=admin_user)
+    assert n2 == 1  # only the new key, A already tracked and untouched
+    assert environment.variables.count() == 2
+
+
+# --- create/update with group+comment reflects in the file on the first write ----
+
+@pytest.mark.django_db
+def test_create_variable_with_group_reflects_in_file_immediately(environment, admin_user, tmp_root):
+    """Regression: create_variable used to write the file, and only then
+    (via a separate update_variable_layout call) get its group assigned —
+    so the file's first version never had the group. create_variable now
+    takes group_name/leading_comment directly so a single write is correct."""
+    services.create_variable(
+        environment_id=environment.id, user=admin_user, key="DB_HOST", value="postgres", is_secret=False,
+        group_name="Database", leading_comment="the db host",
+    )
+    written = (tmp_root / ".env").read_text()
+    assert "Database" in written
+    assert "the db host" in written
+
+    from core import envdoc
+    doc = envdoc.parse(written)
+    assert doc.find_variable("DB_HOST").value == "postgres"
+    assert "Database" in [g.name for g in doc.children if isinstance(g, envdoc.Group)]
+
+
+@pytest.mark.django_db
+def test_edit_variable_group_change_reflects_in_file_from_same_submit(environment, admin_user, tmp_root):
+    """Regression: variable_edit_view called update_variable (writes the
+    file) then update_variable_layout (doesn't write) — the file reflected
+    the OLD group until some unrelated later edit. Services-level
+    equivalent of the view's now-corrected call order (layout first)."""
+    services.create_variable(environment_id=environment.id, user=admin_user, key="A", value="1", is_secret=False)
+    services.update_variable_layout(environment_id=environment.id, user=admin_user, key="A", group_name="Custom")
+    environment.refresh_from_db()
+    services.update_variable(
+        environment_id=environment.id, user=admin_user, key="A", value="2", revision=environment.revision,
+    )
+    written = (tmp_root / ".env").read_text()
+    assert "Custom" in written

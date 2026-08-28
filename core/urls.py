@@ -11,6 +11,7 @@ urlpatterns = [
     path("", views.dashboard_view, name="dashboard"),
     path("environments/<uuid:environment_id>/", views.environment_view, name="environment"),
     path("environments/<uuid:environment_id>/variables/new/", views.variable_create_view, name="variable_create"),
+    path("environments/<uuid:environment_id>/refresh/", views.environment_refresh_view, name="environment_refresh"),
     path("environments/<uuid:environment_id>/variables/<str:key>/edit/", views.variable_edit_view, name="variable_edit"),
     path("environments/<uuid:environment_id>/variables/<str:key>/delete/", views.variable_delete_view, name="variable_delete"),
     path("environments/<uuid:environment_id>/variables/<str:key>/reveal/", views.variable_reveal_view, name="variable_reveal"),
