@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Entries are
 generated automatically from conventional commits by the release pipeline.
 
 <!-- entries below are prepended automatically, newest first -->
+## v0.11.0 - 2026-08-28
+
+## [0.11.0](https://github.com/AristideWafo/env-manager/compare/v0.10.0...v0.11.0) (2026-08-28)
+
+
+### Features
+
+* **ui:** responsive mobile sidebar nav with slide-in toggle ([#14](https://github.com/AristideWafo/env-manager/issues/14)) ([1182ee6](https://github.com/AristideWafo/env-manager/commit/1182ee6c7cd6e1b231e4aca10982efd6a2d026df))
+
 ## v0.10.0 - 2026-08-28
 
 ## [0.10.0](https://github.com/AristideWafo/env-manager/compare/v0.9.3...v0.10.0) (2026-08-28)
