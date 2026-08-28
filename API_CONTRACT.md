@@ -76,6 +76,9 @@ DELETE /environments/{id}/permissions/{userId} → révoque
 ```
 GET    /environments/{id}/variables
   → liste les variables. Les variables is_secret=true sont retournées avec value: null, secret: true.
+  Chaque variable inclut aussi group ("" si hors groupe), comment ("" si aucun), order (int) —
+  métadonnées d'affichage du structured editor (core/envdoc.py), jamais consultées par le fichier
+  .env écrit sur disque (voir DATA_MODEL.md).
 
 POST   /environments/{id}/variables
   body: { key, value, is_secret }
@@ -95,6 +98,19 @@ POST   /environments/{id}/variables/batch
 
 POST   /environments/{id}/variables/{key}/reveal
   → révèle temporairement la valeur d'un secret. Auditée (UC-22).
+
+PATCH  /environments/{id}/variables/{key}/layout
+  body: { group?, comment? }
+  → modifie le groupe d'affichage et/ou le commentaire d'une variable. Nécessite WRITE.
+  Métadonnée d'affichage uniquement : n'incrémente PAS revision, ne réécrit PAS le fichier,
+  et reste autorisé même si locked_for_deploy=true (ne change rien à ce qui est déployé).
+  Omettre un champ le laisse inchangé.
+
+POST   /environments/{id}/variables/reorder
+  body: { keys: [string, ...] }
+  → réordonne les variables selon la liste fournie, qui doit contenir exactement les clés
+  actuelles de l'environnement (chacune une fois), sinon VALIDATION_ERROR. Nécessite WRITE.
+  Même règle que /layout : pas de revision, pas de réécriture fichier, autorisé si verrouillé.
 ```
 
 ## Revisions

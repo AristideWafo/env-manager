@@ -1,3 +1,17 @@
-<span class="inline-flex items-center gap-1.5 font-mono text-emerald-400 select-all">
+<span id="revealed-{{ key }}" class="inline-flex items-center gap-1.5 font-mono text-emerald-400 select-all">
   <c-icon.eye class="w-3.5 h-3.5" /> {{ value }}
 </span>
+<template id="mask-{{ key }}"><c-ui.badge tone="amber"><c-icon.key class="w-3 h-3" /> secret</c-ui.badge></template>
+<script>
+(function () {
+  var span = document.getElementById("revealed-{{ key }}");
+  var mask = document.getElementById("mask-{{ key }}");
+  if (!span || !mask) return;
+  setTimeout(function () {
+    var td = span.closest("td");
+    if (td && document.body.contains(span)) {
+      td.innerHTML = mask.innerHTML;
+    }
+  }, 10000);
+})();
+</script>

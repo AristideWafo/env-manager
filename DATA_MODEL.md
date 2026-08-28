@@ -76,9 +76,22 @@ Contrainte unique : (`project_id`, `name`).
 | is_secret | bool | default false |
 | created_at | datetime | |
 | updated_at | datetime | |
+| order | int | default 0. Position d'affichage (structured editor, `core/envdoc.py`) |
+| group_name | string | default `""`. Nom du groupe d'affichage, vide = hors groupe |
+| leading_comment | text | default `""`. Commentaire affiché juste au-dessus de la variable |
 
 Contrainte unique : (`environment_id`, `key`).
 Règle : si `is_secret=true`, `value` reste vide/null, seul `encrypted_value` est peuplé.
+
+**`order`/`group_name`/`leading_comment` sont des métadonnées d'affichage uniquement.**
+Elles ne sont jamais consultées par `envfile.render_dotenv` — le fichier `.env` écrit sur
+disque reste le format canonique existant (toujours quoté, trié alphabétiquement), c'est
+le contrat que lit le pipeline CI/CD (§4 AGENT_CONTEXT.md) et il ne change pas. Ces champs
+sont peuplés à l'import (`import_variables_from_file`, via `core/envdoc.py` qui comprend le
+vrai dialecte `.env` — groupes, commentaires, valeurs non quotées) et modifiables via
+`update_variable_layout`/`reorder_variables`, qui n'incrémentent jamais `Environment.revision`
+et ne réécrivent jamais le fichier (autorisés même si `locked_for_deploy=true`, puisqu'ils
+ne changent rien à ce qui est déployé).
 
 ## Permission
 
@@ -100,7 +113,7 @@ Contrainte unique : (`user_id`, `environment_id`).
 | id | UUID PK | |
 | environment_id | FK → Environment | |
 | revision_number | int | correspond à `Environment.revision` au moment du snapshot |
-| snapshot | JSON | liste des variables (key, value ou encrypted_value, is_secret) à cet instant |
+| snapshot | JSON | liste des variables (key, value ou encrypted_value, is_secret, order, group_name, leading_comment) à cet instant |
 | created_by | FK → User | |
 | created_at | datetime | |
 
