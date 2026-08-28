@@ -203,25 +203,31 @@ def variable_reveal_view(request, environment_id, key):
 
 @login_required
 def environment_refresh_view(request, environment_id):
-    """Manual 'Refresh from file': re-reads the on-disk .env and imports any
-    key not already tracked in DB (additive-only — see
-    services.import_variables_from_file). Unlike the auto-import on first
-    visit (environment_view), this is re-triggerable any time, e.g. after
-    hand-editing the file outside the app."""
+    """Manual 'Refresh from file': re-reads the on-disk .env and does a full
+    sync — the file is the source of truth, so a key already tracked gets
+    its value/group/comment/order overwritten to match what's on disk, not
+    just filled in when missing (see services.import_variables_from_file).
+    Unlike the auto-import on first visit (environment_view), this is
+    re-triggerable any time, e.g. after hand-editing the file outside the
+    app."""
     environment, err = _env_or_403(request, environment_id, "write")
     if err:
         return err
     try:
-        imported = services.import_variables_from_file(environment_id=environment.id, user=request.user)
+        changed = services.import_variables_from_file(environment_id=environment.id, user=request.user)
     except ApiError as e:
         # Import is @transaction.atomic — nothing was written, so the table
         # is still accurate. Show the error alongside it instead of the
         # generic _error.html, which would otherwise blank the whole table.
+        # Deliberately a 200 (not e.status): htmx only swaps hx-target on a
+        # 2xx response by default, and the whole point here is that the
+        # error banner DOES get swapped into view alongside the table.
         logger.log(logging.ERROR if e.status >= 500 else logging.WARNING,
-                    "refresh from file failed for environment %s: [%s] %s", environment.id, e.code, e.message)
+                   "refresh from file failed for environment %s: [%s] %s", environment.id, e.code, e.message)
         return _render_variables_fragment(request, environment, message=e.message, message_tone="error")
     environment.refresh_from_db()
-    message = f"Imported {imported} new variable(s) from file." if imported else "No new variables found — file already in sync."
+    message = (f"Synced {changed} variable(s) from file (values, groups, and comments updated)."
+               if changed else "No changes found — file already in sync.")
     return _render_variables_fragment(request, environment, message=message, message_tone="success")
 
 

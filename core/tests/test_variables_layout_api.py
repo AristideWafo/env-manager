@@ -158,15 +158,15 @@ class TestImportVariables:
         assert res.status_code == 200
         assert res.json()["data"]["imported"] == 2
 
-    def test_is_additive_only_does_not_overwrite_tracked_values(self, client, dev_read_write, environment, tmp_root):
+    def test_overwrites_tracked_values_from_disk(self, client, dev_read_write, environment, tmp_root):
         client.force_login(dev_read_write)
         post(client, f"/api/v1/environments/{environment.id}/variables", {"key": "A", "value": "from-db"})
         (tmp_root / ".env").write_text("A=from-disk\nB=2\n")
         res = post(client, f"/api/v1/environments/{environment.id}/variables/import", {})
         assert res.status_code == 200
-        assert res.json()["data"]["imported"] == 1  # only B
+        assert res.json()["data"]["imported"] == 2  # A updated, B created
         listed = {v["key"]: v["value"] for v in res.json()["data"]["variables"]}
-        assert listed["A"] == "from-db"
+        assert listed["A"] == "from-disk"
 
     def test_requires_write_permission(self, client, dev_user, environment):
         from core.models import Permission

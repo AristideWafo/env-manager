@@ -53,6 +53,7 @@ def test_import_then_write_preserves_group_and_comment_structure(environment, ad
     always-quoted/alphabetical-only guarantee."""
     (tmp_root / ".env").write_text(FIXTURE.read_text())
     services.import_variables_from_file(environment_id=environment.id, user=admin_user)
+    environment.refresh_from_db()  # import now bumps the revision too (it's a real sync/write)
     # Any value edit triggers _bump_revision_and_write, re-rendering the file
     # from current DB state (group/comment/order included).
     services.update_variable(
@@ -75,6 +76,7 @@ def test_import_then_write_preserves_group_and_comment_structure(environment, ad
 def test_write_never_splits_a_group_across_two_blocks(environment, admin_user, tmp_root):
     (tmp_root / ".env").write_text(FIXTURE.read_text())
     services.import_variables_from_file(environment_id=environment.id, user=admin_user)
+    environment.refresh_from_db()  # import now bumps the revision too (it's a real sync/write)
     services.update_variable(
         environment_id=environment.id, user=admin_user, key="DJANGO_DEBUG",
         value="1", revision=environment.revision,
@@ -341,8 +343,93 @@ def test_import_variables_from_file_is_reusable_manually(environment, admin_user
     assert n1 == 1
     (tmp_root / ".env").write_text("A=1\nB=2\n")
     n2 = services.import_variables_from_file(environment_id=environment.id, user=admin_user)
-    assert n2 == 1  # only the new key, A already tracked and untouched
+    assert n2 == 1  # only B is new — A's value/layout are unchanged, so it's not counted
     assert environment.variables.count() == 2
+
+
+@pytest.mark.django_db
+def test_refresh_overwrites_tracked_value_from_disk(environment, admin_user, tmp_root):
+    services.create_variable(environment_id=environment.id, user=admin_user, key="A", value="from-db", is_secret=False)
+    (tmp_root / ".env").write_text("A=from-disk\n")
+    n = services.import_variables_from_file(environment_id=environment.id, user=admin_user)
+    assert n == 1
+    assert environment.variables.get(key="A").value == "from-disk"
+
+
+@pytest.mark.django_db
+def test_refresh_overwrites_group_comment_and_flank_style(environment, admin_user, tmp_root):
+    services.create_variable(environment_id=environment.id, user=admin_user, key="A", value="1", is_secret=False)
+    (tmp_root / ".env").write_text(
+        "# ==================== Database ====================\n"
+        "# the db host\n"
+        "A=1\n"
+    )
+    services.import_variables_from_file(environment_id=environment.id, user=admin_user)
+    var = environment.variables.get(key="A")
+    assert var.group_name == "Database"
+    assert var.leading_comment == "the db host"
+    assert var.group_flank_char == "="
+    assert var.group_flank_len == 20
+
+
+@pytest.mark.django_db
+def test_refresh_preserves_secret_flag_on_updated_value(environment, admin_user, tmp_root):
+    """The .env file only ever holds plaintext — refresh has no signal to
+    flip is_secret either way, so a variable marked secret in the DB stays
+    secret (re-encrypted with the new value) even though the file's copy
+    of that value is plaintext."""
+    services.create_variable(environment_id=environment.id, user=admin_user, key="A", value="old", is_secret=True)
+    (tmp_root / ".env").write_text("A=new\n")
+    services.import_variables_from_file(environment_id=environment.id, user=admin_user)
+    var = environment.variables.get(key="A")
+    assert var.is_secret is True
+    assert services.decrypt_value(var.encrypted_value) == "new"
+
+
+@pytest.mark.django_db
+def test_refresh_keeps_key_removed_from_file_pushed_to_end(environment, admin_user, tmp_root):
+    services.create_variable(environment_id=environment.id, user=admin_user, key="GONE", value="1", is_secret=False)
+    services.create_variable(environment_id=environment.id, user=admin_user, key="KEPT", value="2", is_secret=False)
+    (tmp_root / ".env").write_text("KEPT=2\nNEW=3\n")
+    services.import_variables_from_file(environment_id=environment.id, user=admin_user)
+    keys_in_order = list(environment.variables.order_by("order").values_list("key", flat=True))
+    assert keys_in_order == ["KEPT", "NEW", "GONE"]  # GONE untouched, not deleted, pushed to the end
+
+
+@pytest.mark.django_db
+def test_refresh_is_noop_when_file_matches_db(environment, admin_user, tmp_root):
+    (tmp_root / ".env").write_text("A=1\n")
+    services.import_variables_from_file(environment_id=environment.id, user=admin_user)
+    environment.refresh_from_db()
+    revision_before = environment.revision
+    n = services.import_variables_from_file(environment_id=environment.id, user=admin_user)
+    environment.refresh_from_db()
+    assert n == 0
+    assert environment.revision == revision_before  # no write when nothing changed
+
+
+@pytest.mark.django_db
+def test_refresh_bumps_revision_and_creates_history_entry(environment, admin_user, tmp_root):
+    services.create_variable(environment_id=environment.id, user=admin_user, key="A", value="old", is_secret=False)
+    environment.refresh_from_db()
+    revision_before = environment.revision
+    (tmp_root / ".env").write_text("A=new\n")
+    services.import_variables_from_file(environment_id=environment.id, user=admin_user)
+    environment.refresh_from_db()
+    assert environment.revision == revision_before + 1
+    assert environment.revisions.filter(revision_number=environment.revision).exists()
+
+
+@pytest.mark.django_db
+def test_refresh_rejects_on_locked_environment(environment, admin_user, tmp_root):
+    from core.services import EnvironmentLocked
+    services.create_variable(environment_id=environment.id, user=admin_user, key="A", value="old", is_secret=False)
+    environment.locked_for_deploy = True
+    environment.save(update_fields=["locked_for_deploy"])
+    (tmp_root / ".env").write_text("A=new\n")
+    with pytest.raises(EnvironmentLocked):
+        services.import_variables_from_file(environment_id=environment.id, user=admin_user)
+    assert environment.variables.get(key="A").value == "old"  # rejected before any write
 
 
 # --- create/update with group+comment reflects in the file on the first write ----
