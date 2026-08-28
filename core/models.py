@@ -115,10 +115,19 @@ class Variable(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Structured-editor metadata (core/envdoc.py). Display/ordering only —
+    # never consulted by envfile.render_dotenv, which stays the always-quoted
+    # alphabetical canonical format the CI/CD pipeline reads (see
+    # core/envfile.py docstring). Losing this metadata never loses a value.
+    order = models.PositiveIntegerField(default=0)
+    group_name = models.CharField(max_length=255, blank=True, default="")
+    leading_comment = models.TextField(blank=True, default="")
+
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=["environment", "key"], name="uniq_env_var_key"),
         ]
+        ordering = ["order"]
 
     def __str__(self):
         return f"{self.environment}:{self.key}"
