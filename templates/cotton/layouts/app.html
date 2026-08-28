@@ -15,6 +15,7 @@ Full page shell for authenticated views: sidebar nav + topbar + content slot.
   <title>{{ title }}</title>
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>window.__SCRIPT_PREFIX__ = "{{ request.META.SCRIPT_NAME }}";</script>
   <script src="{% static 'js/webauthn.js' %}" defer></script>
 </head>
 <body class="h-full bg-slate-950 text-slate-100 antialiased">
@@ -32,7 +33,7 @@ Full page shell for authenticated views: sidebar nav + topbar + content slot.
           <c-icon.folder class="w-5 h-5" /> Projects
         </a>
         {% if user.is_authenticated and user.is_admin %}
-        <a href="/admin/"
+        <a href="{% url 'admin:index' %}"
            class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white transition-colors">
           <c-icon.shield class="w-5 h-5" /> Admin
         </a>

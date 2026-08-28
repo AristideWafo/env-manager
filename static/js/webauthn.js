@@ -23,7 +23,8 @@ function csrfToken() {
 }
 
 async function apiPost(path, body) {
-  const res = await fetch(`/api/v1${path}`, {
+  const base = window.__SCRIPT_PREFIX__ || "";
+  const res = await fetch(`${base}/api/v1${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
     credentials: "same-origin",
