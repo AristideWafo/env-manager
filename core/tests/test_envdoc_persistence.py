@@ -381,3 +381,66 @@ def test_edit_variable_group_change_reflects_in_file_from_same_submit(environmen
     )
     written = (tmp_root / ".env").read_text()
     assert "Custom" in written
+
+
+# --- group header decoration style survives import -> write ------------------
+
+@pytest.mark.django_db
+def test_original_header_flank_style_preserved_through_import_and_rewrite(environment, admin_user, tmp_root):
+    (tmp_root / ".env").write_text(
+        "# ==================== Traefik / TLS ====================\n"
+        "ENVIRONMENT=dev\n"
+        "\n"
+        "# --- Database ---\n"
+        "DB_HOST=postgres\n"
+    )
+    services.import_variables_from_file(environment_id=environment.id, user=admin_user)
+    environment.refresh_from_db()
+    services.update_variable(
+        environment_id=environment.id, user=admin_user, key="ENVIRONMENT",
+        value="dev", revision=environment.revision,
+    )
+    written = (tmp_root / ".env").read_text()
+    assert "==================== Traefik / TLS ====================" in written
+    assert "--- Database ---" in written
+
+
+@pytest.mark.django_db
+def test_new_variable_added_to_group_uses_that_group_existing_flank_style(environment, admin_user, tmp_root):
+    (tmp_root / ".env").write_text("# ==================== Database ====================\nDB_HOST=postgres\n")
+    services.import_variables_from_file(environment_id=environment.id, user=admin_user)
+    services.create_variable(
+        environment_id=environment.id, user=admin_user, key="DB_PORT", value="5432", is_secret=False,
+        group_name="Database",
+    )
+    written = (tmp_root / ".env").read_text()
+    assert written.count("====================") == 2  # one header, not re-decorated per var
+    assert "DB_PORT" in written
+
+
+@pytest.mark.django_db
+def test_user_created_group_defaults_to_dash_flank_style(environment, admin_user, tmp_root):
+    services.create_variable(
+        environment_id=environment.id, user=admin_user, key="A", value="1", is_secret=False, group_name="New Group",
+    )
+    written = (tmp_root / ".env").read_text()
+    assert "--- New Group ---" in written
+
+
+@pytest.mark.django_db
+def test_restore_revision_brings_back_flank_style(environment, admin_user, tmp_root):
+    (tmp_root / ".env").write_text("# ==================== Database ====================\nDB_HOST=postgres\n")
+    services.import_variables_from_file(environment_id=environment.id, user=admin_user)
+    environment.refresh_from_db()
+    services.update_variable(
+        environment_id=environment.id, user=admin_user, key="DB_HOST", value="postgres2", revision=environment.revision,
+    )
+    environment.refresh_from_db()
+    rev = environment.revision
+
+    services.update_variable(
+        environment_id=environment.id, user=admin_user, key="DB_HOST", value="postgres3", revision=environment.revision,
+    )
+    services.restore_revision(environment_id=environment.id, user=admin_user, revision_number=rev)
+    written = (tmp_root / ".env").read_text()
+    assert "====================" in written

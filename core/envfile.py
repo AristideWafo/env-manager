@@ -71,13 +71,15 @@ def render_dotenv(variables: list[dict]) -> str:
 
 def render_document(variables: list[dict]) -> str:
     """
-    variables: list of {"key", "value", "group", "comment"}, IN DISPLAY ORDER
-    (Variable.order — see models.py). Builds a core/envdoc.py Document —
-    grouping contiguous same-group entries into a Group node, rendering each
-    variable's leading_comment as Comment nodes right above it — and
-    serializes it. Unlike render_dotenv, values are quoted only when unsafe
-    unquoted (see envdoc.encode_value), and groups/comments/order actually
-    reach the file.
+    variables: list of {"key", "value", "group", "comment", "flank_char",
+    "flank_len"}, IN DISPLAY ORDER (Variable.order — see models.py). Builds
+    a core/envdoc.py Document — grouping contiguous same-group entries into
+    a Group node (header style taken from the first member's flank_char/
+    flank_len, e.g. "====" vs "---" — see models.Variable.group_flank_char),
+    rendering each variable's leading_comment as Comment nodes right above
+    it — and serializes it. Unlike render_dotenv, values are quoted only
+    when unsafe unquoted (see envdoc.encode_value), and groups/comments/
+    order actually reach the file.
 
     Relies on the group-contiguity invariant enforced in services.py
     (variables sharing a group_name are always contiguous in `order` —
@@ -95,7 +97,11 @@ def render_document(variables: list[dict]) -> str:
             if started:
                 doc.children.append(envdoc.Blank())
             if group:
-                current_container = envdoc.Group(name=group, raw=None)
+                current_container = envdoc.Group(
+                    name=group, raw=None,
+                    flank_char=var.get("flank_char") or "-",
+                    flank_len=var.get("flank_len") or 3,
+                )
                 doc.children.append(current_container)
             else:
                 current_container = doc
