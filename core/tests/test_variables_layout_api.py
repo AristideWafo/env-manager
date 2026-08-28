@@ -147,3 +147,36 @@ class TestGroupRenameAndUngroup:
         client.force_login(dev_user)
         res = post(client, f"/api/v1/environments/{environment.id}/groups/rename", {"old_name": "A", "new_name": "B"})
         assert res.status_code == 403
+
+
+@pytest.mark.django_db
+class TestImportVariables:
+    def test_imports_new_keys_from_disk(self, client, dev_read_write, environment, tmp_root):
+        client.force_login(dev_read_write)
+        (tmp_root / ".env").write_text("A=1\nB=2\n")
+        res = post(client, f"/api/v1/environments/{environment.id}/variables/import", {})
+        assert res.status_code == 200
+        assert res.json()["data"]["imported"] == 2
+
+    def test_is_additive_only_does_not_overwrite_tracked_values(self, client, dev_read_write, environment, tmp_root):
+        client.force_login(dev_read_write)
+        post(client, f"/api/v1/environments/{environment.id}/variables", {"key": "A", "value": "from-db"})
+        (tmp_root / ".env").write_text("A=from-disk\nB=2\n")
+        res = post(client, f"/api/v1/environments/{environment.id}/variables/import", {})
+        assert res.status_code == 200
+        assert res.json()["data"]["imported"] == 1  # only B
+        listed = {v["key"]: v["value"] for v in res.json()["data"]["variables"]}
+        assert listed["A"] == "from-db"
+
+    def test_requires_write_permission(self, client, dev_user, environment):
+        from core.models import Permission
+        Permission.objects.create(user=dev_user, environment=environment, can_read=True)
+        client.force_login(dev_user)
+        res = post(client, f"/api/v1/environments/{environment.id}/variables/import", {})
+        assert res.status_code == 403
+
+    def test_route_does_not_collide_with_key_routes(self, client, dev_read_write, environment):
+        client.force_login(dev_read_write)
+        post(client, f"/api/v1/environments/{environment.id}/variables", {"key": "import", "value": "x"})
+        res = post(client, f"/api/v1/environments/{environment.id}/variables/import", {})
+        assert res.status_code == 200

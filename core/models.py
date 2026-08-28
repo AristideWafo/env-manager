@@ -115,10 +115,15 @@ class Variable(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    # Structured-editor metadata (core/envdoc.py). Display/ordering only —
-    # never consulted by envfile.render_dotenv, which stays the always-quoted
-    # alphabetical canonical format the CI/CD pipeline reads (see
-    # core/envfile.py docstring). Losing this metadata never loses a value.
+    # Structured-editor metadata (core/envdoc.py). group_name/leading_comment/
+    # order DO feed the file write (envfile.render_document groups/comments
+    # the output using exactly these fields) — but losing this metadata
+    # never loses a value, only formatting: a file rewritten from scratch
+    # falls back to one flat, ungrouped, uncommented block.
+    # group_name membership must stay contiguous in `order` across all of an
+    # environment's variables — see services._group_blocks and the
+    # functions that maintain it (reorder_variables, swap_variable_order,
+    # update_variable_layout, import's _normalize_group_contiguity).
     order = models.PositiveIntegerField(default=0)
     group_name = models.CharField(max_length=255, blank=True, default="")
     leading_comment = models.TextField(blank=True, default="")

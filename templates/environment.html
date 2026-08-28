@@ -16,6 +16,12 @@
   <c-ui.card title="Variables" subtitle="Secrets are masked by default — reveal explicitly when needed.">
     <c-slot name="actions">
       {% if can_write %}
+      <form hx-post="{% url 'core:environment_refresh' environment.id %}" hx-target="#variables-table" hx-swap="outerHTML" class="inline">
+        {% csrf_token %}
+        <c-ui.button variant="ghost" size="sm" type="submit" title="Re-read the .env file on disk and import any key not yet tracked">
+          Refresh from file
+        </c-ui.button>
+      </form>
       <c-ui.button variant="primary" size="sm"
                    hx-get="{% url 'core:variable_create' environment.id %}" hx-target="#variables-table" hx-swap="outerHTML">
         <c-icon.plus class="w-4 h-4" /> Add variable

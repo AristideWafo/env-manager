@@ -122,20 +122,13 @@ def variable_create_view(request, environment_id):
         return err
     if request.method == "POST":
         try:
-            var = services.create_variable(
+            services.create_variable(
                 environment_id=environment.id, user=request.user,
                 key=request.POST["key"], value=request.POST.get("value", ""),
                 is_secret=request.POST.get("is_secret") == "on",
+                group_name=request.POST.get("group", "").strip(),
+                leading_comment=request.POST.get("comment", "").strip(),
             )
-            group = request.POST.get("group", "").strip()
-            comment = request.POST.get("comment", "").strip()
-            if group or comment:
-                # Layout metadata (core/envdoc.py concepts) — separate from
-                # the value write above: no revision bump, no file rewrite.
-                services.update_variable_layout(
-                    environment_id=environment.id, user=request.user, key=var.key,
-                    group_name=group, leading_comment=comment,
-                )
         except ApiError as e:
             return _api_error_response(request, e)
         environment.refresh_from_db()
@@ -152,18 +145,23 @@ def variable_edit_view(request, environment_id, key):
         return err
     if request.method == "POST":
         try:
-            services.update_variable(
-                environment_id=environment.id, user=request.user, key=key,
-                value=request.POST.get("value", ""), revision=int(request.POST["revision"]),
-                is_secret=request.POST.get("is_secret") == "on",
-            )
-            # Layout metadata — separate concern from the value write above
-            # (see create_variable_view). Always applied on save so clearing
-            # the field in the form clears it on the variable too.
+            # Layout metadata FIRST, value write SECOND: update_variable's
+            # write (_bump_revision_and_write) renders the file from
+            # whatever group_name/leading_comment hold *right now* — doing
+            # it the other way round would write the file once with the
+            # old group/comment, then never rewrite it to match (layout
+            # changes don't trigger a write on their own; see
+            # update_variable_layout). Always applied so clearing the
+            # field in the form clears it on the variable too.
             services.update_variable_layout(
                 environment_id=environment.id, user=request.user, key=key,
                 group_name=request.POST.get("group", "").strip(),
                 leading_comment=request.POST.get("comment", "").strip(),
+            )
+            services.update_variable(
+                environment_id=environment.id, user=request.user, key=key,
+                value=request.POST.get("value", ""), revision=int(request.POST["revision"]),
+                is_secret=request.POST.get("is_secret") == "on",
             )
         except ApiError as e:
             return _api_error_response(request, e)
@@ -200,6 +198,24 @@ def variable_reveal_view(request, environment_id, key):
         return render(request, "_error.html", {"message": "confirmation required"}, status=422)
     value = services.reveal_variable(environment=environment, user=request.user, key=key)
     return render(request, "_revealed_value.html", {"key": key, "value": value})
+
+
+@login_required
+def environment_refresh_view(request, environment_id):
+    """Manual 'Refresh from file': re-reads the on-disk .env and imports any
+    key not already tracked in DB (additive-only — see
+    services.import_variables_from_file). Unlike the auto-import on first
+    visit (environment_view), this is re-triggerable any time, e.g. after
+    hand-editing the file outside the app."""
+    environment, err = _env_or_403(request, environment_id, "write")
+    if err:
+        return err
+    try:
+        services.import_variables_from_file(environment_id=environment.id, user=request.user)
+    except ApiError as e:
+        return _api_error_response(request, e)
+    environment.refresh_from_db()
+    return _render_variables_fragment(request, environment)
 
 
 @login_required

@@ -83,15 +83,29 @@ Contrainte unique : (`project_id`, `name`).
 Contrainte unique : (`environment_id`, `key`).
 Règle : si `is_secret=true`, `value` reste vide/null, seul `encrypted_value` est peuplé.
 
-**`order`/`group_name`/`leading_comment` sont des métadonnées d'affichage uniquement.**
-Elles ne sont jamais consultées par `envfile.render_dotenv` — le fichier `.env` écrit sur
-disque reste le format canonique existant (toujours quoté, trié alphabétiquement), c'est
-le contrat que lit le pipeline CI/CD (§4 AGENT_CONTEXT.md) et il ne change pas. Ces champs
-sont peuplés à l'import (`import_variables_from_file`, via `core/envdoc.py` qui comprend le
-vrai dialecte `.env` — groupes, commentaires, valeurs non quotées) et modifiables via
-`update_variable_layout`/`reorder_variables`, qui n'incrémentent jamais `Environment.revision`
-et ne réécrivent jamais le fichier (autorisés même si `locked_for_deploy=true`, puisqu'ils
-ne changent rien à ce qui est déployé).
+**`order`/`group_name`/`leading_comment` pilotent le fichier écrit, mais ne portent jamais
+la valeur d'une variable.** `write_environment_file` sérialise via `envfile.render_document`
+(`core/envdoc.py`) : groupes, commentaires, ordre et quoting-si-nécessaire atterrissent
+dans le fichier — décision actée après le format canonique toujours-quoté/trié initial (voir
+git log ; le changement casse potentiellement un consommateur externe strict sur le format,
+accepté en connaissance de cause). Perdre ces champs ne perd jamais une valeur, seulement
+la mise en forme (un fichier réécrit sans eux retombe sur un bloc plat, non groupé, sans
+commentaire).
+
+**Invariant de contiguïté des groupes** : à un instant donné, toutes les `Variable` d'un
+même `environment_id` partageant un `group_name` non vide doivent être contiguës en `order`
+— aucune variable hors groupe ou d'un autre groupe ne peut s'intercaler. Maintenu par
+`services._group_blocks`/`_validate_block_contiguity` (rejette un `reorder_variables` qui
+casserait ça) et `_normalize_group_contiguity` (répare après `update_variable_layout` ou
+un import qui ajoute des membres d'un groupe déjà présent ailleurs).
+
+Ces champs sont peuplés à l'import (`import_variables_from_file`, via `core/envdoc.py` qui
+comprend le vrai dialecte `.env` — groupes, commentaires, valeurs non quotées) et modifiables
+via `update_variable_layout`/`reorder_variables`/`swap_variable_order`, qui n'incrémentent
+jamais `Environment.revision` et ne réécrivent jamais le fichier eux-mêmes (autorisés même si
+`locked_for_deploy=true`, puisqu'ils ne changent rien à ce qui est *actuellement* déployé) —
+mais la prochaine écriture déclenchée par une modification de valeur utilisera l'état courant
+de ces champs.
 
 ## Permission
 

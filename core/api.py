@@ -473,6 +473,19 @@ def reorder_variables(request, environment_id: uuid.UUID, payload: ReorderVariab
     })
 
 
+@variables_router.post("/environments/{environment_id}/variables/import")
+def import_variables(request, environment_id: uuid.UUID):
+    # NB: must stay registered before /variables/{key} routes below — same
+    # reason as /variables/batch and /variables/reorder above (a bare
+    # {key} pattern would otherwise swallow "import").
+    environment = _get_environment_checked(request, environment_id, "write")
+    imported = services.import_variables_from_file(environment_id=environment.id, user=request.user)
+    return envelope({
+        "imported": imported,
+        "variables": [services.serialize_variable(v) for v in environment.variables.all().order_by("order")],
+    })
+
+
 class MoveVariableIn(Schema):
     direction: Literal["up", "down"]
 

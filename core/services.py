@@ -169,10 +169,13 @@ def _snapshot(environment: Environment) -> list[dict]:
 
 
 def _decrypted_variables_for_file(environment: Environment) -> list[dict]:
+    """In display order (Variable.order), with group/comment — see
+    envfile.render_document, which builds the file's group/comment
+    structure from exactly these fields."""
     out = []
-    for var in environment.variables.all().order_by("key"):
+    for var in environment.variables.all().order_by("order"):
         value = decrypt_value(var.encrypted_value) if var.is_secret else var.value
-        out.append({"key": var.key, "value": value})
+        out.append({"key": var.key, "value": value, "group": var.group_name, "comment": var.leading_comment})
     return out
 
 
@@ -271,16 +274,27 @@ def _bump_revision_and_write(environment: Environment, user) -> Revision:
 
 
 @transaction.atomic
-def create_variable(*, environment_id, user, key, value, is_secret) -> Variable:
+def create_variable(*, environment_id, user, key, value, is_secret, group_name="", leading_comment="") -> Variable:
+    """group_name/leading_comment are set (and, if a group is given,
+    positioned contiguously with the rest of that group —
+    _normalize_group_contiguity) BEFORE the file write below, so the write
+    reflects the variable's final group/comment on the first try — setting
+    them via a separate update_variable_layout() call afterward would write
+    the file once ungrouped/uncommented, then never rewrite it to match."""
     environment = Environment.objects.select_for_update().get(pk=environment_id)
     if environment.locked_for_deploy:
         raise EnvironmentLocked()
     validate_key(key)
     if Variable.objects.filter(environment=environment, key=key).exists():
         raise ValidationError(f"variable already exists: {key}")
-    var = Variable(environment=environment, key=key, is_secret=is_secret, order=_next_order(environment))
+    var = Variable(
+        environment=environment, key=key, is_secret=is_secret, order=_next_order(environment),
+        group_name=group_name, leading_comment=leading_comment,
+    )
     _set_value(var, value, is_secret)
     var.save()
+    if group_name:
+        _normalize_group_contiguity(environment)
     _bump_revision_and_write(environment, user)
     audit(user=user, action=AuditLog.Action.CREATE, target=key,
           project=environment.project, environment=environment)
@@ -329,21 +343,94 @@ def delete_variable(*, environment_id, user, key, revision) -> None:
     logger.info("variable deleted: key=%s environment=%s user=%s", key, environment.id, user)
 
 
+def _group_blocks(environment) -> list[tuple[str | None, list[str]]]:
+    """Partitions the environment's variables (in current `order`) into
+    contiguous blocks: a run of variables sharing a non-empty group_name is
+    one block — the group-contiguity invariant (see module notes above
+    reorder_variables) guarantees this partition is unambiguous, i.e. the
+    same group name never appears in two separate blocks. Each ungrouped
+    variable is its own singleton block (group=None): ungrouped variables
+    never need to stay together."""
+    blocks: list[tuple[str | None, list[str]]] = []
+    for var in environment.variables.order_by("order"):
+        g = var.group_name or None
+        if g is not None and blocks and blocks[-1][0] == g:
+            blocks[-1][1].append(var.key)
+        else:
+            blocks.append((g, [var.key]))
+    return blocks
+
+
+def _validate_block_contiguity(ordered_keys: list[str], existing: dict) -> None:
+    """Raises ValidationError if ordered_keys would split a group: the same
+    non-empty group_name closing and later reopening. `existing` maps
+    key -> Variable (for its current group_name)."""
+    closed = set()
+    current = None
+    for key in ordered_keys:
+        g = existing[key].group_name or None
+        if g != current:
+            if current is not None:
+                closed.add(current)
+            if g is not None and g in closed:
+                raise ValidationError(
+                    f"reorder would split group {g!r}: its members must stay contiguous"
+                )
+            current = g
+
+
+def _normalize_group_contiguity(environment) -> None:
+    """Repairs the invariant after a raw group_name write (update_variable_
+    layout, import): if the same group name now appears in more than one
+    block — e.g. a variable was just reassigned into a group that already
+    has members elsewhere, or import appended new members of an
+    already-present group at the end — merges those blocks into one,
+    keeping the first block's position and each block's internal order
+    (so newly added/moved members land at the end of the group). Rewrites
+    `order` directly; no audit entry (this is bookkeeping, not a
+    user-visible reorder — the caller's own audit entry covers the action
+    that necessitated it)."""
+    blocks = _group_blocks(environment)
+    seen_at: dict[str, int] = {}
+    merged: list[tuple[str | None, list[str]]] = []
+    for group, keys in blocks:
+        if group is not None and group in seen_at:
+            merged[seen_at[group]][1].extend(keys)
+        else:
+            if group is not None:
+                seen_at[group] = len(merged)
+            merged.append((group, list(keys)))
+    ordered_keys = [k for _, keys in merged for k in keys]
+    existing = {v.key: v for v in environment.variables.all()}
+    for i, key in enumerate(ordered_keys):
+        var = existing[key]
+        if var.order != i:
+            var.order = i
+            var.save(update_fields=["order"])
+
+
 @transaction.atomic
 def update_variable_layout(*, environment_id, user, key, group_name=None, leading_comment=None) -> Variable:
     """Structured-editor metadata only (core/envdoc.py concepts: which group a
     variable displays under, its leading comment). Never touches
-    value/encrypted_value, never bumps the revision, never rewrites the file
-    — write_environment_file's canonical always-quoted/alphabetical output
-    doesn't consult these fields (see models.py). Allowed even when the
-    environment is locked_for_deploy, since it can't change what's deployed.
-    Pass None (the default) to leave a field unchanged."""
-    environment = Environment.objects.get(pk=environment_id)
+    value/encrypted_value and never bumps the revision or writes the file
+    itself — but the next value-triggered write (_bump_revision_and_write)
+    renders using whatever group_name/leading_comment/order currently hold
+    (envfile.render_document), so this IS what puts a group/comment into the
+    file, just not synchronously. Allowed even when the environment is
+    locked_for_deploy, since it can't change what's currently deployed.
+    Pass None (the default) to leave a field unchanged.
+
+    Changing group_name repositions the variable to stay contiguous with
+    its new group (see _normalize_group_contiguity) — the group-contiguity
+    invariant must never be left broken by this call."""
+    environment = Environment.objects.select_for_update().get(pk=environment_id)
     try:
         var = Variable.objects.get(environment=environment, key=key)
     except Variable.DoesNotExist:
         raise NotFound(f"variable not found: {key}")
     update_fields = []
+    group_changed = group_name is not None and group_name != var.group_name
     if group_name is not None:
         var.group_name = group_name
         update_fields.append("group_name")
@@ -352,6 +439,8 @@ def update_variable_layout(*, environment_id, user, key, group_name=None, leadin
         update_fields.append("leading_comment")
     if update_fields:
         var.save(update_fields=update_fields)
+    if group_changed:
+        _normalize_group_contiguity(environment)
     audit(user=user, action=AuditLog.Action.UPDATE, target=f"layout:{key}",
           project=environment.project, environment=environment)
     return var
@@ -362,13 +451,17 @@ def reorder_variables(*, environment_id, user, ordered_keys: list[str]) -> None:
     """Reassigns display order (0..N-1) to match ordered_keys exactly.
     Metadata-only — see update_variable_layout. ordered_keys must be exactly
     the environment's current variable keys, each once; a partial or stale
-    list is rejected rather than silently reordering a subset."""
+    list is rejected rather than silently reordering a subset. Also rejects
+    an ordered_keys that would split a group (group-contiguity invariant —
+    see _group_blocks) — an ungrouped variable, or a member of a different
+    group, may never sit between two members of the same group."""
     environment = Environment.objects.select_for_update().get(pk=environment_id)
     existing = {v.key: v for v in environment.variables.all()}
     if sorted(ordered_keys) != sorted(existing.keys()) or len(ordered_keys) != len(set(ordered_keys)):
         raise ValidationError(
             "ordered_keys must contain exactly the environment's current variable keys, each once"
         )
+    _validate_block_contiguity(ordered_keys, existing)
     for i, key in enumerate(ordered_keys):
         var = existing[key]
         if var.order != i:
@@ -379,22 +472,35 @@ def reorder_variables(*, environment_id, user, ordered_keys: list[str]) -> None:
 
 
 def swap_variable_order(*, environment_id, user, key, direction: str) -> None:
-    """Moves one variable one slot up/down in display order by swapping it
-    with its immediate neighbor. A thin, UI-friendly wrapper around
-    reorder_variables (no separate 'group move' concept — see DATA_MODEL.md:
-    group is just Variable.group_name, so moving a variable across the group
-    boundary at its neighbor also changes which group it displays under)."""
+    """Moves a variable one step up/down in display order — group-aware:
+    if key sits inside a multi-member group and isn't at that group's edge,
+    swaps it with its immediate neighbor *inside the group* (safe, doesn't
+    touch contiguity). If key is at its own block's edge (an ungrouped
+    variable, or a grouped variable that can't move further within its
+    group without leaving it), swaps its whole block with the adjacent
+    block instead — so a group always moves as one unit relative to
+    whatever's next to it, and the group-contiguity invariant can never be
+    broken by this operation. Use update_variable_layout to actually move a
+    variable into/out of a group."""
     if direction not in ("up", "down"):
         raise ValidationError(f"invalid direction: {direction!r} (must be 'up' or 'down')")
     environment = Environment.objects.select_for_update().get(pk=environment_id)
-    keys = list(environment.variables.order_by("order").values_list("key", flat=True))
-    if key not in keys:
+    blocks = [(g, list(keys)) for g, keys in _group_blocks(environment)]
+    block_index = next((i for i, (_, keys) in enumerate(blocks) if key in keys), None)
+    if block_index is None:
         raise NotFound(f"variable not found: {key}")
-    i = keys.index(key)
-    j = i - 1 if direction == "up" else i + 1
-    if 0 <= j < len(keys):
-        keys[i], keys[j] = keys[j], keys[i]
-        reorder_variables(environment_id=environment_id, user=user, ordered_keys=keys)
+    step = -1 if direction == "up" else 1
+    _, block_keys = blocks[block_index]
+    pos = block_keys.index(key)
+    new_pos = pos + step
+    if 0 <= new_pos < len(block_keys):
+        block_keys[pos], block_keys[new_pos] = block_keys[new_pos], block_keys[pos]
+    else:
+        neighbor_index = block_index + step
+        if 0 <= neighbor_index < len(blocks):
+            blocks[block_index], blocks[neighbor_index] = blocks[neighbor_index], blocks[block_index]
+    ordered_keys = [k for _, keys in blocks for k in keys]
+    reorder_variables(environment_id=environment_id, user=user, ordered_keys=ordered_keys)
 
 
 @transaction.atomic
@@ -444,17 +550,21 @@ def _leading_comment_for(container, index: int) -> str:
 @transaction.atomic
 def import_variables_from_file(*, environment_id, user) -> int:
     """Populate untracked Variable rows from what's already on disk for this
-    environment's .env file (e.g. an existing file that predates this
-    environment being declared in the app). Keys already tracked in the DB
-    are left untouched — this only fills gaps, never overwrites. Does not
-    bump the revision or rewrite the file, since its content already matches.
+    environment's .env file — either the first-visit auto-import of a file
+    that predates this environment being declared in the app, or a manual
+    "Refresh from file" (see views.environment_refresh_view). Keys already
+    tracked in the DB are left untouched — this only fills gaps, never
+    overwrites an existing value. Does not bump the revision or rewrite the
+    file itself, since the file's content already matches what was just
+    read from it.
 
     Uses core/envdoc.py to understand the real .env dialect (comments,
-    groups, unquoted values) rather than only the app's own always-quoted
-    canonical format, so a genuine legacy file imports correctly. The parsed
-    group/leading-comment/order are stored on Variable as display metadata
-    only (see models.py) — they never affect what write_environment_file
-    puts on disk (still always-quoted/alphabetical, per envfile.py).
+    groups, unquoted values). The parsed group/leading-comment/order are
+    stored on Variable and DO feed back into the next write
+    (envfile.render_document) — that's the point: re-running this against a
+    hand-edited file picks up its structure. _normalize_group_contiguity
+    keeps the group-contiguity invariant intact even if some of a group's
+    members were already tracked (and thus skipped) while others are new.
 
     Returns the number of variables imported."""
     environment = Environment.objects.select_for_update().get(pk=environment_id)
@@ -487,6 +597,7 @@ def import_variables_from_file(*, environment_id, user) -> int:
         next_order += 1
         imported += 1
     if imported:
+        _normalize_group_contiguity(environment)
         audit(user=user, action=AuditLog.Action.CREATE, target=f"import:{imported} variable(s)",
               project=environment.project, environment=environment)
         logger.info("imported %d variable(s) from existing .env file into environment %s", imported, environment.id)

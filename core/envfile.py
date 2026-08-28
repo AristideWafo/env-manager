@@ -13,6 +13,7 @@ from pathlib import Path
 
 from django.conf import settings
 
+from . import envdoc
 from .models import AllowedRoot
 
 logger = logging.getLogger(__name__)
@@ -50,16 +51,63 @@ def render_dotenv(variables: list[dict]) -> str:
     """
     variables: list of {"key": str, "value": str}. Secrets are passed already
     decrypted by the caller — this function has no knowledge of is_secret.
+
+    Flat always-quoted format. No longer used by write_environment_file (see
+    render_document below) — kept as a minimal, still-tested primitive; a
+    correct dotenv renderer for callers that want the older, structure-free
+    guarantee. Not reachable from any production write path as of the
+    structured-editor work (core/envdoc.py).
     """
     lines = []
     for var in variables:
         key = var["key"]
         value = var["value"] or ""
         # Minimal, predictable .env quoting: wrap in double quotes and escape
-        # backslash/quote/newline so the CI/CD .env parser gets a single line.
+        # backslash/quote/newline so a downstream .env parser gets a single line.
         escaped = value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
         lines.append(f'{key}="{escaped}"')
     return "\n".join(lines) + ("\n" if lines else "")
+
+
+def render_document(variables: list[dict]) -> str:
+    """
+    variables: list of {"key", "value", "group", "comment"}, IN DISPLAY ORDER
+    (Variable.order — see models.py). Builds a core/envdoc.py Document —
+    grouping contiguous same-group entries into a Group node, rendering each
+    variable's leading_comment as Comment nodes right above it — and
+    serializes it. Unlike render_dotenv, values are quoted only when unsafe
+    unquoted (see envdoc.encode_value), and groups/comments/order actually
+    reach the file.
+
+    Relies on the group-contiguity invariant enforced in services.py
+    (variables sharing a group_name are always contiguous in `order` —
+    reorder_variables/swap_variable_order/update_variable_layout all
+    maintain it) — this function does not itself detect or reject a split
+    group, it just renders whatever order it's given.
+    """
+    doc = envdoc.Document()
+    current_group_name = None
+    current_container = doc
+    started = False
+    for var in variables:
+        group = var.get("group") or None
+        if not started or group != current_group_name:
+            if started:
+                doc.children.append(envdoc.Blank())
+            if group:
+                current_container = envdoc.Group(name=group, raw=None)
+                doc.children.append(current_container)
+            else:
+                current_container = doc
+            current_group_name = group
+            started = True
+        comment = var.get("comment") or ""
+        for line in comment.splitlines():
+            current_container.children.append(envdoc.Comment.new(line))
+        current_container.children.append(
+            envdoc.Variable(key=var["key"], value=var["value"] or "", quote=None, raw=None)
+        )
+    return envdoc.serialize(doc)
 
 
 def atomic_write(path: Path, content: str) -> None:
@@ -86,8 +134,10 @@ def atomic_write(path: Path, content: str) -> None:
 
 
 def write_environment_file(environment, decrypted_variables: list[dict]) -> None:
+    """decrypted_variables: list of {"key", "value", "group", "comment"} in
+    display order (see services._decrypted_variables_for_file)."""
     path = resolve_environment_path(environment)
-    content = render_dotenv(decrypted_variables)
+    content = render_document(decrypted_variables)
     atomic_write(path, content)
     logger.info("wrote .env file for environment %s (%d variables)", environment.id, len(decrypted_variables))
 
@@ -122,9 +172,11 @@ def _unescape(value: str) -> str:
 
 
 def parse_dotenv(content: str) -> list[dict]:
-    """Parse the KEY="value" format render_dotenv writes back into
-    [{"key": ..., "value": ...}, ...]. Lines that don't match are skipped
-    (e.g. a pre-existing file hand-edited outside the app)."""
+    """Parse the KEY="value" format render_dotenv writes (no longer the
+    production write format — see render_document) back into
+    [{"key": ..., "value": ...}, ...]. Lines that don't match are skipped.
+    Not used by import_variables_from_file, which uses core/envdoc.py's
+    real-dialect parser instead; kept as a tested primitive."""
     variables = []
     for line in content.splitlines():
         line = line.strip()
