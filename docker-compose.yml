@@ -1,0 +1,26 @@
+services:
+  web:
+    build: .
+    image: env-manager:latest
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+      DJANGO_DEBUG: "0"
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set a real secret key}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-envmanager.ffaero.com}
+      ENV_MANAGER_FERNET_KEY: ${ENV_MANAGER_FERNET_KEY:?set a real Fernet key, keep it outside the DB}
+      ENV_MANAGER_DB_PATH: /app/data/db.sqlite3
+      WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-envmanager.ffaero.com}
+      WEBAUTHN_RP_NAME: "Env Manager"
+      WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:-https://envmanager.ffaero.com}
+      CI_API_TOKENS: ${CI_API_TOKENS:-}
+    volumes:
+      - db-data:/app/data
+      # Mount the FFAERO project roots this instance is allowed to write .env
+      # files into (must match the AllowedRoot rows declared by an admin).
+      - ${FFAERO_ROOT:-/opt/ffaero}:/opt/ffaero
+
+volumes:
+  db-data:
