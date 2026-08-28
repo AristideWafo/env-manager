@@ -169,6 +169,16 @@ CSRF_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 
+# This app holds plaintext secrets in-session-adjacent pages (unmasked reveal,
+# forms) — auto-logout an idle user after 10 minutes rather than the framework
+# default of two weeks. SESSION_SAVE_EVERY_REQUEST makes this a rolling/idle
+# timeout (each request resets the clock) rather than a fixed one, and it's
+# enforced server-side (Django rejects an expired session key on the next
+# request) — the matching client-side idle timer in app.html is just the UX
+# half, forcing an immediate redirect instead of waiting for the next click.
+SESSION_COOKIE_AGE = 600
+SESSION_SAVE_EVERY_REQUEST = True
+
 # Trust the scheme reported by a reverse proxy (nginx/Caddy/Traefik terminating
 # TLS in front of the container) so Django knows the request is HTTPS.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

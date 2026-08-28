@@ -80,5 +80,26 @@ Full page shell for authenticated views: sidebar nav + topbar + content slot.
       </main>
     </div>
   </div>
+
+  <script>
+    // Idle auto-logout: matches SESSION_COOKIE_AGE / SESSION_SAVE_EVERY_REQUEST
+    // in settings.py (server-side rolling 10min session expiry) — this is the
+    // client-side half, redirecting immediately on idle instead of waiting
+    // for the user's next click to discover the session already died server-side.
+    (function () {
+      const IDLE_MS = 10 * 60 * 1000;
+      let timer;
+      function resetTimer() {
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+          window.location.href = "{% url 'core:logout' %}";
+        }, IDLE_MS);
+      }
+      ["mousemove", "mousedown", "keydown", "scroll", "touchstart"].forEach(function (evt) {
+        document.addEventListener(evt, resetTimer, { passive: true });
+      });
+      resetTimer();
+    })();
+  </script>
 </body>
 </html>
