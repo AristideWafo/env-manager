@@ -1,7 +1,7 @@
 # Env Manager
 
-Internal web app for FFAERO developers to manage `.env` variables across
-projects without server access. WebAuthn (passkey) login, per-environment
+Self-hosted web app for teams to manage `.env` variables across projects
+without server access. WebAuthn (passkey) login, per-environment
 permissions, optimistic-lock revisions, full audit trail, and atomic `.env`
 writes. Spec lives in [`AGENT_CONTEXT.md`](AGENT_CONTEXT.md),
 [`DATA_MODEL.md`](DATA_MODEL.md), [`USE_CASES.md`](USE_CASES.md) and
@@ -46,7 +46,7 @@ ruff check .
    device.
 4. Log in at `/login/` with that email using the passkey.
 5. As ADMIN, create an `AllowedRoot` (a real absolute path on the host,
-   e.g. `/opt/ffaero`), a `Project` under it, and an `Environment` (e.g.
+   e.g. `/opt/projects`), a `Project` under it, and an `Environment` (e.g.
    `DEV`, relative path `.env`) — all via `/admin/`.
 6. Grant a `Permission` (read/write/delete) to a `DEVELOPER` user on that
    environment, then invite them the same way as step 3.
@@ -67,8 +67,8 @@ cp .env.example .env   # fill in DJANGO_SECRET_KEY, ENV_MANAGER_FERNET_KEY, etc.
 docker compose --env-file .env up --build
 ```
 
-The SQLite file persists in the `db-data` volume; `FFAERO_ROOT` is bind-mounted
-so the container can write `.env` files where the existing CI/CD pipeline
+The SQLite file persists in the `db-data` volume; `PROJECTS_ROOT` is bind-mounted
+so the container can write `.env` files where your existing CI/CD pipeline
 expects them — it must match the `AllowedRoot.path` rows declared in-app.
 
 ## Security notes
