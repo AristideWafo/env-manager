@@ -132,14 +132,26 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 # The manifest-hashed storage requires `collectstatic` to have been run (it
 # reads staticfiles.json for the hashed filenames); that's fine in prod
 # builds but not in local dev/tests, so fall back to plain, unhashed static
-# file storage whenever DEBUG is on.
+# file storage by default.
+#
+# This is deliberately its OWN setting, not just `not DEBUG`: `docker build`
+# runs `collectstatic` with none of docker-compose's runtime env vars set
+# (those only exist at `docker run`), so DJANGO_DEBUG would be unset/"1"
+# there too — tying storage choice directly to DEBUG meant collectstatic
+# ran with the plain backend at build time (writing no manifest), while the
+# container then started with DJANGO_DEBUG=0 at runtime expecting one,
+# and 500'd on every {% static %} tag. The Dockerfile sets
+# DJANGO_STATIC_MANIFEST=1 before its collectstatic step for exactly this
+# reason — using it instead of DEBUG here also avoids flipping DEBUG (and
+# its FERNET_KEY-generation side effect below) just to pick a storage class.
+_use_manifest_static = os.environ.get("DJANGO_STATIC_MANIFEST", "0") == "1" or not DEBUG
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {
         "BACKEND": (
-            "django.contrib.staticfiles.storage.StaticFilesStorage"
-            if DEBUG
-            else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            if _use_manifest_static
+            else "django.contrib.staticfiles.storage.StaticFilesStorage"
         )
     },
 }

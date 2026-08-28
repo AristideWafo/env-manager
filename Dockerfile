@@ -35,6 +35,12 @@ RUN adduser --disabled-password --gecos "" appuser \
     && chown -R appuser:appuser /app
 USER appuser
 
+# Force the manifest-hashed static storage for this collectstatic run (see
+# config/settings.py) — DJANGO_DEBUG isn't set at build time (docker-compose
+# only injects it at `docker run`), so tying storage choice to DEBUG would
+# collect with the plain backend here while the container starts with
+# DJANGO_DEBUG=0 at runtime expecting a manifest that was never written.
+ENV DJANGO_STATIC_MANIFEST=1
 RUN python manage.py collectstatic --noinput
 
 EXPOSE 8000
