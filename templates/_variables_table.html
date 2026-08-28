@@ -19,14 +19,16 @@
                 <span class="text-xs font-semibold uppercase tracking-wide text-indigo-400/80">{{ var.group }}</span>
                 {% if can_write %}
                 <div class="flex items-center gap-1">
-                  <form hx-post="{% url 'core:group_rename' environment.id var.group %}" hx-target="#variables-table" hx-swap="outerHTML"
+                  <form hx-post="{% url 'core:group_rename' environment.id %}" hx-target="#variables-table" hx-swap="outerHTML"
                         hx-prompt="New name for group &quot;{{ var.group }}&quot;:" class="inline">
                     {% csrf_token %}
+                    <input type="hidden" name="group_name" value="{{ var.group }}">
                     <c-ui.button variant="ghost" size="sm" class="!px-1.5 !py-0.5 !text-xs" type="submit" title="Rename group">Rename</c-ui.button>
                   </form>
-                  <form hx-post="{% url 'core:group_ungroup' environment.id var.group %}" hx-target="#variables-table" hx-swap="outerHTML"
+                  <form hx-post="{% url 'core:group_ungroup' environment.id %}" hx-target="#variables-table" hx-swap="outerHTML"
                         hx-confirm="Remove all variables from group &quot;{{ var.group }}&quot;? They stay, just ungrouped." class="inline">
                     {% csrf_token %}
+                    <input type="hidden" name="group_name" value="{{ var.group }}">
                     <c-ui.button variant="ghost" size="sm" class="!px-1.5 !py-0.5 !text-xs" type="submit" title="Ungroup">Ungroup</c-ui.button>
                   </form>
                 </div>
