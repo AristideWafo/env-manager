@@ -14,6 +14,9 @@ urlpatterns = [
     path("environments/<uuid:environment_id>/variables/<str:key>/edit/", views.variable_edit_view, name="variable_edit"),
     path("environments/<uuid:environment_id>/variables/<str:key>/delete/", views.variable_delete_view, name="variable_delete"),
     path("environments/<uuid:environment_id>/variables/<str:key>/reveal/", views.variable_reveal_view, name="variable_reveal"),
+    path("environments/<uuid:environment_id>/variables/<str:key>/move/<str:direction>/", views.variable_move_view, name="variable_move"),
+    path("environments/<uuid:environment_id>/groups/<str:group_name>/rename/", views.group_rename_view, name="group_rename"),
+    path("environments/<uuid:environment_id>/groups/<str:group_name>/ungroup/", views.group_ungroup_view, name="group_ungroup"),
     path("environments/<uuid:environment_id>/revisions/", views.revisions_view, name="revisions"),
     path("environments/<uuid:environment_id>/revisions/<int:rev_number>/restore/", views.revision_restore_view, name="revision_restore"),
 ]

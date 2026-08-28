@@ -84,3 +84,66 @@ class TestReorderVariables:
         post(client, f"/api/v1/environments/{environment.id}/variables", {"key": "reorder", "value": "x"})
         res = post(client, f"/api/v1/environments/{environment.id}/variables/reorder", {"keys": ["reorder"]})
         assert res.status_code == 200
+
+
+@pytest.mark.django_db
+class TestMoveVariable:
+    def test_moves_up(self, client, dev_read_write, environment):
+        client.force_login(dev_read_write)
+        for k in ("A", "B"):
+            post(client, f"/api/v1/environments/{environment.id}/variables", {"key": k, "value": "1"})
+        res = post(client, f"/api/v1/environments/{environment.id}/variables/B/move", {"direction": "up"})
+        assert res.status_code == 200
+        assert [v["key"] for v in res.json()["data"]["variables"]] == ["B", "A"]
+
+    def test_invalid_direction_is_validation_error(self, client, dev_read_write, environment):
+        client.force_login(dev_read_write)
+        post(client, f"/api/v1/environments/{environment.id}/variables", {"key": "A", "value": "1"})
+        res = post(client, f"/api/v1/environments/{environment.id}/variables/A/move", {"direction": "sideways"})
+        assert res.status_code == 422
+
+    def test_requires_write_permission(self, client, dev_user, environment):
+        from core.models import Permission
+        Permission.objects.create(user=dev_user, environment=environment, can_read=True)
+        client.force_login(dev_user)
+        res = post(client, f"/api/v1/environments/{environment.id}/variables/A/move", {"direction": "up"})
+        assert res.status_code == 403
+
+
+@pytest.mark.django_db
+class TestGroupRenameAndUngroup:
+    def _make_grouped(self, client, environment):
+        for k in ("A", "B"):
+            post(client, f"/api/v1/environments/{environment.id}/variables", {"key": k, "value": "1"})
+            patch(client, f"/api/v1/environments/{environment.id}/variables/{k}/layout", {"group": "Old"})
+
+    def test_rename_group_updates_all_members(self, client, dev_read_write, environment):
+        client.force_login(dev_read_write)
+        self._make_grouped(client, environment)
+        res = post(client, f"/api/v1/environments/{environment.id}/groups/rename", {"old_name": "Old", "new_name": "New"})
+        assert res.status_code == 200
+        assert res.json()["data"]["updated"] == 2
+        listed = client.get(f"/api/v1/environments/{environment.id}/variables").json()["data"]["variables"]
+        assert {v["group"] for v in listed} == {"New"}
+
+    def test_rename_group_empty_new_name_rejected(self, client, dev_read_write, environment):
+        client.force_login(dev_read_write)
+        self._make_grouped(client, environment)
+        res = post(client, f"/api/v1/environments/{environment.id}/groups/rename", {"old_name": "Old", "new_name": "  "})
+        assert res.status_code == 422
+
+    def test_ungroup_clears_group_on_members(self, client, dev_read_write, environment):
+        client.force_login(dev_read_write)
+        self._make_grouped(client, environment)
+        res = post(client, f"/api/v1/environments/{environment.id}/groups/ungroup", {"group_name": "Old"})
+        assert res.status_code == 200
+        assert res.json()["data"]["updated"] == 2
+        listed = client.get(f"/api/v1/environments/{environment.id}/variables").json()["data"]["variables"]
+        assert {v["group"] for v in listed} == {""}
+
+    def test_rename_group_requires_write_permission(self, client, dev_user, environment):
+        from core.models import Permission
+        Permission.objects.create(user=dev_user, environment=environment, can_read=True)
+        client.force_login(dev_user)
+        res = post(client, f"/api/v1/environments/{environment.id}/groups/rename", {"old_name": "A", "new_name": "B"})
+        assert res.status_code == 403

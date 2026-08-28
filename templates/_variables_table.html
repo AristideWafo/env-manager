@@ -14,7 +14,25 @@
         {% ifchanged var.group %}
           {% if var.group %}
           <tr class="bg-white/[0.02]">
-            <td colspan="3" class="px-5 pt-4 pb-1.5 text-xs font-semibold uppercase tracking-wide text-indigo-400/80">{{ var.group }}</td>
+            <td colspan="3" class="px-5 pt-4 pb-1.5">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs font-semibold uppercase tracking-wide text-indigo-400/80">{{ var.group }}</span>
+                {% if can_write %}
+                <div class="flex items-center gap-1">
+                  <form hx-post="{% url 'core:group_rename' environment.id var.group %}" hx-target="#variables-table" hx-swap="outerHTML"
+                        hx-prompt="New name for group &quot;{{ var.group }}&quot;:" class="inline">
+                    {% csrf_token %}
+                    <c-ui.button variant="ghost" size="sm" class="!px-1.5 !py-0.5 !text-xs" type="submit" title="Rename group">Rename</c-ui.button>
+                  </form>
+                  <form hx-post="{% url 'core:group_ungroup' environment.id var.group %}" hx-target="#variables-table" hx-swap="outerHTML"
+                        hx-confirm="Remove all variables from group &quot;{{ var.group }}&quot;? They stay, just ungrouped." class="inline">
+                    {% csrf_token %}
+                    <c-ui.button variant="ghost" size="sm" class="!px-1.5 !py-0.5 !text-xs" type="submit" title="Ungroup">Ungroup</c-ui.button>
+                  </form>
+                </div>
+                {% endif %}
+              </div>
+            </td>
           </tr>
           {% endif %}
         {% endifchanged %}
@@ -45,6 +63,14 @@
               </form>
               {% endif %}
               {% if can_write %}
+              <form hx-post="{% url 'core:variable_move' environment.id var.key 'up' %}" hx-target="#variables-table" hx-swap="outerHTML" class="inline">
+                {% csrf_token %}
+                <c-ui.button variant="ghost" size="sm" type="submit" class="!px-2 !py-1" title="Move up">&uarr;</c-ui.button>
+              </form>
+              <form hx-post="{% url 'core:variable_move' environment.id var.key 'down' %}" hx-target="#variables-table" hx-swap="outerHTML" class="inline">
+                {% csrf_token %}
+                <c-ui.button variant="ghost" size="sm" type="submit" class="!px-2 !py-1" title="Move down">&darr;</c-ui.button>
+              </form>
               <c-ui.button variant="ghost" size="sm" class="!px-2 !py-1"
                            hx-get="{% url 'core:variable_edit' environment.id var.key %}" hx-target="#variables-table" hx-swap="outerHTML"
                            title="Edit">Edit</c-ui.button>
