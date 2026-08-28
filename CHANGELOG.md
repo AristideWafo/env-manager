@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Entries are
 generated automatically from conventional commits by the release pipeline.
 
 <!-- entries below are prepended automatically, newest first -->
+## v0.9.1 - 2026-08-28
+
+### [0.9.1](https://github.com/AristideWafo/env-manager/compare/v0.9.0...v0.9.1) (2026-08-28)
+
+
+### Bug Fixes
+
+* **prod:** staticfiles manifest never generated at Docker build time ([#10](https://github.com/AristideWafo/env-manager/issues/10)) ([2015cbc](https://github.com/AristideWafo/env-manager/commit/2015cbca481d1e0c4f7b01c1384c771204ec6b0a))
+
 ## v0.9.0 - 2026-08-28
 
 ## [0.9.0](https://github.com/AristideWafo/env-manager/compare/v0.8.0...v0.9.0) (2026-08-28)
