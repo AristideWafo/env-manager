@@ -250,6 +250,32 @@ class TestEnvironmentRefreshView:
         client.post(f"/environments/{environment.id}/refresh/")
         assert environment.variables.get(key="A").value == "from-disk"
 
+    def test_shows_synced_count_banner(self, client, dev_read_write, environment, tmp_root):
+        client.force_login(dev_read_write)
+        (tmp_root / ".env").write_text("A=1\nB=2\n")
+        res = client.post(f"/environments/{environment.id}/refresh/")
+        assert "Synced 2 variable(s)" in res.content.decode()
+
+    def test_shows_no_changes_banner_on_second_run(self, client, dev_read_write, environment, tmp_root):
+        client.force_login(dev_read_write)
+        (tmp_root / ".env").write_text("A=1\n")
+        client.post(f"/environments/{environment.id}/refresh/")
+        res = client.post(f"/environments/{environment.id}/refresh/")
+        assert "No changes found" in res.content.decode()
+
+    def test_shows_error_banner_and_keeps_table_on_locked_environment(self, client, dev_read_write, environment, tmp_root):
+        from core import services
+        client.force_login(dev_read_write)
+        services.create_variable(environment_id=environment.id, user=dev_read_write, key="A", value="1", is_secret=False)
+        environment.locked_for_deploy = True
+        environment.save(update_fields=["locked_for_deploy"])
+        (tmp_root / ".env").write_text("A=2\n")
+        res = client.post(f"/environments/{environment.id}/refresh/")
+        assert res.status_code == 200
+        body = res.content.decode()
+        assert "A" in body  # table still rendered, not blanked
+        assert environment.variables.get(key="A").value == "1"  # nothing written
+
     def test_requires_write_permission(self, client, dev_user, environment):
         from core.models import Permission
         Permission.objects.create(user=dev_user, environment=environment, can_read=True)
