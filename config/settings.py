@@ -129,9 +129,19 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # Served directly by the app (WhiteNoise) so a single container is enough in
 # production — no separate web server/CDN required for static assets.
+# The manifest-hashed storage requires `collectstatic` to have been run (it
+# reads staticfiles.json for the hashed filenames); that's fine in prod
+# builds but not in local dev/tests, so fall back to plain, unhashed static
+# file storage whenever DEBUG is on.
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    "staticfiles": {
+        "BACKEND": (
+            "django.contrib.staticfiles.storage.StaticFilesStorage"
+            if DEBUG
+            else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        )
+    },
 }
 
 # Models declare id = UUIDField(primary_key=True) explicitly (DATA_MODEL.md);
