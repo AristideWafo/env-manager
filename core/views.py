@@ -219,6 +219,9 @@ def environment_refresh_view(request, environment_id):
         # Import is @transaction.atomic — nothing was written, so the table
         # is still accurate. Show the error alongside it instead of the
         # generic _error.html, which would otherwise blank the whole table.
+        # Deliberately a 200 (not e.status): htmx only swaps hx-target on a
+        # 2xx response by default, and the whole point here is that the
+        # error banner DOES get swapped into view alongside the table.
         logger.log(logging.ERROR if e.status >= 500 else logging.WARNING,
                    "refresh from file failed for environment %s: [%s] %s", environment.id, e.code, e.message)
         return _render_variables_fragment(request, environment, message=e.message, message_tone="error")
