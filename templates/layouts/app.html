@@ -1,67 +1,74 @@
-{% load static %}<c-vars title="Env Manager" heading="" subheading="" />
+{% load static icons %}<!doctype html>
 {% comment %}
-Full page shell for authenticated views: sidebar nav + topbar + content slot.
-<c-layouts.app title="Dashboard — Env Manager" heading="Projects" subheading="...">
-  <c-slot name="actions">optional buttons next to the heading</c-slot>
-  ...page content...
-</c-layouts.app>
+Full page shell for authenticated views: sidebar nav + topbar + content.
+Plain Django template inheritance (no Cotton) — pages do:
+
+  {% extends "layouts/app.html" %}
+  {% block title %}Dashboard — Env Manager{% endblock %}
+  {% block heading %}Projects{% endblock %}
+  {% block subheading %}...{% endblock %}
+  {% block actions %}optional buttons next to the heading{% endblock %}
+  {% block content %}...page content...{% endblock %}
+
+See design/DESIGN.md and design/COMPONENTS.md for the visual system.
 {% endcomment %}
-<!doctype html>
 <html lang="en" class="h-full">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token }}">
-  <title>{{ title }}</title>
+  <title>{% block title %}Env Manager{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>window.__SCRIPT_PREFIX__ = "{{ request.META.SCRIPT_NAME }}";</script>
   <script src="{% static 'js/webauthn.js' %}" defer></script>
 </head>
-<body class="h-full bg-slate-950 text-slate-100 antialiased">
+<body class="h-full font-display bg-paper text-ink antialiased">
   <div class="flex h-full min-h-screen">
     <div id="sidebar-backdrop"
-         class="fixed inset-0 z-30 bg-black/60 hidden md:hidden"
+         class="fixed inset-0 z-30 bg-black/30 hidden md:hidden"
          onclick="document.getElementById('sidebar').classList.add('-translate-x-full'); document.getElementById('sidebar-backdrop').classList.add('hidden');"></div>
 
     <aside id="sidebar"
            class="fixed inset-y-0 left-0 z-40 w-64 -translate-x-full transition-transform duration-200 ease-in-out
                   md:static md:translate-x-0 md:w-60 md:shrink-0
-                  flex flex-col border-r border-slate-800 bg-slate-950 md:bg-slate-950/60">
+                  flex flex-col border-r border-line bg-surface">
       <div class="flex items-center justify-between gap-2 px-5 py-5">
         <div class="flex items-center gap-2 min-w-0">
-          <div class="rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 p-1.5 shadow-lg shadow-indigo-950/50 shrink-0">
-            <c-icon.shield class="w-5 h-5 text-white" />
+          <div class="rounded-lg bg-ink p-1.5 shrink-0">
+            {% icon "shield" "w-5 h-5 text-white" %}
           </div>
           <span class="font-semibold tracking-tight truncate">Env Manager</span>
         </div>
         <button type="button" title="Close menu" aria-label="Close menu"
-                class="md:hidden shrink-0 text-slate-500 hover:text-white"
+                class="md:hidden shrink-0 text-muted hover:text-ink"
                 onclick="document.getElementById('sidebar').classList.add('-translate-x-full'); document.getElementById('sidebar-backdrop').classList.add('hidden');">
-          <c-icon.x class="w-5 h-5" />
+          {% icon "x" "w-5 h-5" %}
         </button>
       </div>
       <nav class="flex-1 px-3 space-y-1 overflow-y-auto">
-        <a href="{% url 'core:dashboard' %}"
-           class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white transition-colors">
-          <c-icon.folder class="w-5 h-5" /> Projects
+        <a href="{% url 'core:dashboard' %}" class="nav-link">
+          {% icon "folder" "w-5 h-5" %} Projects
         </a>
         {% if user.is_authenticated and user.is_admin %}
-        <a href="{% url 'admin:index' %}"
-           class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white transition-colors">
-          <c-icon.shield class="w-5 h-5" /> Admin
+        <a href="{% url 'admin:index' %}" class="nav-link">
+          {% icon "shield" "w-5 h-5" %} Admin
         </a>
         {% endif %}
       </nav>
       {% if user.is_authenticated %}
-      <div class="border-t border-slate-800 p-3">
+      <div class="border-t border-line p-3">
         <div class="flex items-center justify-between gap-2 rounded-lg px-2 py-2">
           <div class="min-w-0">
-            <p class="text-sm font-medium text-slate-200 truncate">{{ user.display_name|default:user.email }}</p>
-            <p class="text-xs text-slate-500 truncate">{{ user.role|title }}</p>
+            <p class="text-sm font-medium text-ink truncate">{{ user.display_name|default:user.email }}</p>
+            <p class="text-xs text-muted truncate">{{ user.role|title }}</p>
           </div>
-          <a href="{% url 'core:logout' %}" title="Log out" class="shrink-0 text-slate-500 hover:text-white transition-colors">
-            <c-icon.logout class="w-5 h-5" />
+          <a href="{% url 'core:logout' %}" title="Log out" class="shrink-0 text-muted hover:text-ink transition-colors">
+            {% icon "logout" "w-5 h-5" %}
           </a>
         </div>
       </div>
@@ -69,22 +76,22 @@ Full page shell for authenticated views: sidebar nav + topbar + content slot.
     </aside>
 
     <div class="flex-1 min-w-0 flex flex-col">
-      <header class="flex items-center justify-between flex-wrap gap-4 border-b border-slate-800 px-4 md:px-8 py-4">
+      <header class="flex items-center justify-between flex-wrap gap-4 border-b border-line px-4 md:px-8 py-4">
         <div class="flex items-center gap-3 min-w-0">
           <button type="button" title="Open menu" aria-label="Open menu"
-                  class="md:hidden shrink-0 text-slate-400 hover:text-white"
+                  class="md:hidden shrink-0 text-muted hover:text-ink"
                   onclick="document.getElementById('sidebar').classList.remove('-translate-x-full'); document.getElementById('sidebar-backdrop').classList.remove('hidden');">
-            <c-icon.menu class="w-5 h-5" />
+            {% icon "menu" "w-5 h-5" %}
           </button>
           <div class="min-w-0">
-            {% if heading %}<h1 class="text-lg font-semibold text-slate-100 truncate">{{ heading }}</h1>{% endif %}
-            {% if subheading %}<p class="text-sm text-slate-500 truncate">{{ subheading }}</p>{% endif %}
+            <h1 class="text-lg font-semibold text-ink truncate">{% block heading %}{% endblock %}</h1>
+            {% block subheading %}{% endblock %}
           </div>
         </div>
         <div class="flex items-center gap-3 shrink-0">
-          {{ actions }}
-          <a href="{% url 'core:logout' %}" class="md:hidden text-slate-500 hover:text-white">
-            <c-icon.logout class="w-5 h-5" />
+          {% block actions %}{% endblock %}
+          <a href="{% url 'core:logout' %}" class="md:hidden text-muted hover:text-ink">
+            {% icon "logout" "w-5 h-5" %}
           </a>
         </div>
       </header>
@@ -93,11 +100,14 @@ Full page shell for authenticated views: sidebar nav + topbar + content slot.
         {% if messages %}
         <div class="mb-4 space-y-2">
           {% for message in messages %}
-          <c-ui.alert tone="{% if message.tags == 'error' %}error{% else %}success{% endif %}">{{ message }}</c-ui.alert>
+          <div class="alert {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+            {% if message.tags == 'error' %}{% icon "x_circle" "w-5 h-5 shrink-0 mt-0.5" %}{% else %}{% icon "check_circle" "w-5 h-5 shrink-0 mt-0.5" %}{% endif %}
+            <div>{{ message }}</div>
+          </div>
           {% endfor %}
         </div>
         {% endif %}
-        {{ slot }}
+        {% block content %}{% endblock %}
       </main>
     </div>
   </div>
@@ -122,5 +132,6 @@ Full page shell for authenticated views: sidebar nav + topbar + content slot.
       resetTimer();
     })();
   </script>
+  {% block extra_script %}{% endblock %}
 </body>
 </html>

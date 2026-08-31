@@ -1,41 +1,38 @@
+{% load icons %}
 <div id="variables-table">
 <form hx-post="{% url 'core:variable_edit' environment.id var.key %}" hx-target="#variables-table" hx-swap="outerHTML"
-      class="space-y-3 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+      class="space-y-3 rounded-xl border border-line bg-[var(--line-soft)] p-4">
   {% csrf_token %}
-  <div class="font-mono text-sm text-slate-300">{{ var.key }}</div>
+  <div class="font-mono text-sm text-ink">{{ var.key }}</div>
   <div>
-    <label class="block text-xs font-medium text-slate-400 mb-1">Value</label>
+    <label class="field-label">Value</label>
     {% if not var.is_secret %}
-    <input name="value" value="{{ var.value }}"
-           class="w-full font-mono text-sm rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+    <input name="value" value="{{ var.value }}" class="field-input font-mono">
     {% else %}
-    <input name="value" placeholder="new secret value"
-           class="w-full font-mono text-sm rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+    <input name="value" placeholder="new secret value" class="field-input font-mono">
     {% endif %}
   </div>
   <input type="hidden" name="revision" value="{{ environment.revision }}">
   <div class="grid sm:grid-cols-2 gap-3">
     <div>
-      <label class="block text-xs font-medium text-slate-400 mb-1">Group <span class="text-slate-600">(optional)</span></label>
-      <input name="group" list="group-names" value="{{ var.group_name }}" placeholder="Database"
-             class="w-full text-sm rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+      <label class="field-label">Group <span class="text-faint">(optional)</span></label>
+      <input name="group" list="group-names" value="{{ var.group_name }}" placeholder="Database" class="field-input">
       <datalist id="group-names">
         {% for g in group_names %}<option value="{{ g }}">{% endfor %}
       </datalist>
     </div>
     <div>
-      <label class="block text-xs font-medium text-slate-400 mb-1">Comment <span class="text-slate-600">(optional)</span></label>
-      <input name="comment" value="{{ var.leading_comment }}" placeholder="shown above the variable"
-             class="w-full text-sm rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+      <label class="field-label">Comment <span class="text-faint">(optional)</span></label>
+      <input name="comment" value="{{ var.leading_comment }}" placeholder="shown above the variable" class="field-input">
     </div>
   </div>
-  <label class="flex items-center gap-2 text-sm text-slate-400">
+  <label class="flex items-center gap-2 text-sm text-muted">
     <input type="checkbox" name="is_secret" {% if var.is_secret %}checked{% endif %}
-           class="rounded border-slate-600 bg-slate-950 text-indigo-500 focus:ring-indigo-500"> secret
+           class="rounded border-line text-accent focus:ring-accent"> secret
   </label>
   <div class="flex gap-2 pt-1">
-    <c-ui.button variant="primary" size="sm" type="submit">Save</c-ui.button>
-    <c-ui.button variant="ghost" size="sm" href="{% url 'core:environment' environment.id %}">Cancel</c-ui.button>
+    <button type="submit" class="btn btn-primary btn-sm">Save</button>
+    <a href="{% url 'core:environment' environment.id %}" class="btn btn-ghost btn-sm">Cancel</a>
   </div>
 </form>
 </div>
