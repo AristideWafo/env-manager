@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Entries are
 generated automatically from conventional commits by the release pipeline.
 
 <!-- entries below are prepended automatically, newest first -->
+## v0.12.2 - 2026-08-31
+
+### [0.12.2](https://github.com/AristideWafo/env-manager/compare/v0.12.1...v0.12.2) (2026-08-31)
+
+
+### Code Refactoring
+
+* **ui:** remove django-cotton, add plain-CSS design system ([#17](https://github.com/AristideWafo/env-manager/issues/17)) ([59dca01](https://github.com/AristideWafo/env-manager/commit/59dca01a383972e92c0d2f5ad0dbef9f8e431871))
+
 ## v0.12.1 - 2026-08-28
 
 ### [0.12.1](https://github.com/AristideWafo/env-manager/compare/v0.12.0...v0.12.1) (2026-08-28)
