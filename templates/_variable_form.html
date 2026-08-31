@@ -1,40 +1,37 @@
+{% load icons %}
 <div id="variables-table">
 <form hx-post="{% url 'core:variable_create' environment.id %}" hx-target="#variables-table" hx-swap="outerHTML"
-      class="space-y-3 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+      class="space-y-3 rounded-xl border border-line bg-[var(--line-soft)] p-4">
   {% csrf_token %}
   <div class="grid sm:grid-cols-2 gap-3">
     <div>
-      <label class="block text-xs font-medium text-slate-400 mb-1">Key</label>
-      <input name="key" placeholder="DATABASE_URL" required
-             class="w-full font-mono text-sm rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+      <label class="field-label">Key</label>
+      <input name="key" placeholder="DATABASE_URL" required class="field-input font-mono">
     </div>
     <div>
-      <label class="block text-xs font-medium text-slate-400 mb-1">Value</label>
-      <input name="value" placeholder="value"
-             class="w-full font-mono text-sm rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+      <label class="field-label">Value</label>
+      <input name="value" placeholder="value" class="field-input font-mono">
     </div>
   </div>
   <div class="grid sm:grid-cols-2 gap-3">
     <div>
-      <label class="block text-xs font-medium text-slate-400 mb-1">Group <span class="text-slate-600">(optional)</span></label>
-      <input name="group" list="group-names" placeholder="Database"
-             class="w-full text-sm rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+      <label class="field-label">Group <span class="text-faint">(optional)</span></label>
+      <input name="group" list="group-names" placeholder="Database" class="field-input">
       <datalist id="group-names">
         {% for g in group_names %}<option value="{{ g }}">{% endfor %}
       </datalist>
     </div>
     <div>
-      <label class="block text-xs font-medium text-slate-400 mb-1">Comment <span class="text-slate-600">(optional)</span></label>
-      <input name="comment" placeholder="shown above the variable"
-             class="w-full text-sm rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+      <label class="field-label">Comment <span class="text-faint">(optional)</span></label>
+      <input name="comment" placeholder="shown above the variable" class="field-input">
     </div>
   </div>
-  <label class="flex items-center gap-2 text-sm text-slate-400">
-    <input type="checkbox" name="is_secret" class="rounded border-slate-600 bg-slate-950 text-indigo-500 focus:ring-indigo-500"> mark as secret
+  <label class="flex items-center gap-2 text-sm text-muted">
+    <input type="checkbox" name="is_secret" class="rounded border-line text-accent focus:ring-accent"> mark as secret
   </label>
   <div class="flex gap-2 pt-1">
-    <c-ui.button variant="primary" size="sm" type="submit">Save</c-ui.button>
-    <c-ui.button variant="ghost" size="sm" href="{% url 'core:environment' environment.id %}">Cancel</c-ui.button>
+    <button type="submit" class="btn btn-primary btn-sm">Save</button>
+    <a href="{% url 'core:environment' environment.id %}" class="btn btn-ghost btn-sm">Cancel</a>
   </div>
 </form>
 </div>

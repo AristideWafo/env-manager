@@ -1,7 +1,8 @@
-<span id="revealed-{{ key }}" class="inline-flex items-center gap-1.5 font-mono text-emerald-400 select-all">
-  <c-icon.eye class="w-3.5 h-3.5" /> {{ value }}
+{% load icons %}
+<span id="revealed-{{ key }}" class="inline-flex items-center gap-1.5 font-mono text-accent select-all">
+  {% icon "eye" "w-3.5 h-3.5" %} {{ value }}
 </span>
-<template id="mask-{{ key }}"><c-ui.badge tone="amber"><c-icon.key class="w-3 h-3" /> secret</c-ui.badge></template>
+<template id="mask-{{ key }}"><span class="badge badge-warning">{% icon "key" "w-3 h-3" %} secret</span></template>
 <script>
 (function () {
   var span = document.getElementById("revealed-{{ key }}");

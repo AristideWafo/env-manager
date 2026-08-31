@@ -1,6 +1,10 @@
+{% load icons %}
 <div id="variables-table">
   {% if message %}
-  <c-ui.alert tone="{{ message_tone }}" class="mb-4">{{ message }}</c-ui.alert>
+  <div class="alert {% if message_tone == 'success' %}alert-success{% else %}alert-error{% endif %} mb-4">
+    {% if message_tone == 'success' %}{% icon "check_circle" "w-5 h-5 shrink-0 mt-0.5" %}{% else %}{% icon "x_circle" "w-5 h-5 shrink-0 mt-0.5" %}{% endif %}
+    <div>{{ message }}</div>
+  </div>
   {% endif %}
   {% if variables %}
   <div class="overflow-x-auto -mx-5">
@@ -14,40 +18,40 @@
     forcing the table wider (never truncated — full value stays visible,
     it just wraps).
     {% endcomment %}
-    <table class="w-full text-sm table-fixed">
+    <table class="table-clean w-full text-sm table-fixed">
       <colgroup>
         <col class="w-[28%]">
         <col>
         <col class="w-56">
       </colgroup>
       <thead>
-        <tr class="text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-800">
-          <th class="px-5 py-2 font-medium">Key</th>
-          <th class="px-5 py-2 font-medium">Value</th>
-          <th class="px-5 py-2 font-medium"></th>
+        <tr>
+          <th>Key</th>
+          <th>Value</th>
+          <th></th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-slate-800/70">
+      <tbody>
         {% for var in variables %}
         {% ifchanged var.group %}
           {% if var.group %}
-          <tr class="bg-white/[0.02]">
+          <tr class="bg-[var(--line-soft)]">
             <td colspan="3" class="px-5 pt-4 pb-1.5">
               <div class="flex items-center justify-between gap-2">
-                <span class="text-xs font-semibold uppercase tracking-wide text-indigo-400/80">{{ var.group }}</span>
+                <span class="eyebrow text-accent">{{ var.group }}</span>
                 {% if can_write %}
                 <div class="flex items-center gap-1">
                   <form hx-post="{% url 'core:group_rename' environment.id %}" hx-target="#variables-table" hx-swap="outerHTML"
                         hx-prompt="New name for group &quot;{{ var.group }}&quot;:" class="inline">
                     {% csrf_token %}
                     <input type="hidden" name="group_name" value="{{ var.group }}">
-                    <c-ui.button variant="ghost" size="sm" class="!px-1.5 !py-0.5 !text-xs" type="submit" title="Rename group">Rename</c-ui.button>
+                    <button type="submit" class="btn btn-ghost btn-xs" title="Rename group">Rename</button>
                   </form>
                   <form hx-post="{% url 'core:group_ungroup' environment.id %}" hx-target="#variables-table" hx-swap="outerHTML"
                         hx-confirm="Remove all variables from group &quot;{{ var.group }}&quot;? They stay, just ungrouped." class="inline">
                     {% csrf_token %}
                     <input type="hidden" name="group_name" value="{{ var.group }}">
-                    <c-ui.button variant="ghost" size="sm" class="!px-1.5 !py-0.5 !text-xs" type="submit" title="Ungroup">Ungroup</c-ui.button>
+                    <button type="submit" class="btn btn-ghost btn-xs" title="Ungroup">Ungroup</button>
                   </form>
                 </div>
                 {% endif %}
@@ -57,20 +61,20 @@
           {% endif %}
         {% endifchanged %}
         {% if var.comment %}
-        <tr id="var-comment-{{ var.key }}" class="hover:bg-white/5 transition-colors">
-          <td colspan="3" class="px-5 pt-2 text-xs text-slate-500 italic whitespace-pre-line">{{ var.comment }}</td>
+        <tr id="var-comment-{{ var.key }}">
+          <td colspan="3" class="px-5 pt-2 text-xs text-muted italic whitespace-pre-line">{{ var.comment }}</td>
         </tr>
         {% endif %}
-        <tr id="var-row-{{ var.key }}" class="hover:bg-white/5 transition-colors">
-          <td class="px-5 py-3 font-mono text-slate-200 break-all">{{ var.key }}</td>
-          <td class="px-5 py-3 font-mono text-slate-400 break-all">
+        <tr id="var-row-{{ var.key }}">
+          <td class="font-mono text-ink break-all">{{ var.key }}</td>
+          <td class="font-mono text-muted break-all">
             {% if var.secret %}
-              <c-ui.badge tone="amber"><c-icon.key class="w-3 h-3" /> secret</c-ui.badge>
+              <span class="badge badge-warning">{% icon "key" "w-3 h-3" %} secret</span>
             {% else %}
               {{ var.value|default:"—" }}
             {% endif %}
           </td>
-          <td class="px-5 py-3">
+          <td>
             <div class="flex items-center justify-end gap-1.5">
               {% if var.secret %}
               <form hx-post="{% url 'core:variable_reveal' environment.id var.key %}"
@@ -79,30 +83,30 @@
                     class="flex items-center gap-1">
                 {% csrf_token %}
                 <input type="hidden" name="confirm" value="on">
-                <c-ui.button variant="ghost" size="sm" type="submit" class="!px-2 !py-1" title="Reveal"><c-icon.eye class="w-4 h-4" /></c-ui.button>
+                <button type="submit" class="btn btn-ghost btn-xs !px-2 !py-1" title="Reveal">{% icon "eye" "w-4 h-4" %}</button>
               </form>
               {% endif %}
               {% if can_write %}
               <form hx-post="{% url 'core:variable_move' environment.id var.key 'up' %}" hx-target="#variables-table" hx-swap="outerHTML" class="inline">
                 {% csrf_token %}
-                <c-ui.button variant="ghost" size="sm" type="submit" class="!px-2 !py-1" title="Move up">&uarr;</c-ui.button>
+                <button type="submit" class="btn btn-ghost btn-xs !px-2 !py-1" title="Move up">&uarr;</button>
               </form>
               <form hx-post="{% url 'core:variable_move' environment.id var.key 'down' %}" hx-target="#variables-table" hx-swap="outerHTML" class="inline">
                 {% csrf_token %}
-                <c-ui.button variant="ghost" size="sm" type="submit" class="!px-2 !py-1" title="Move down">&darr;</c-ui.button>
+                <button type="submit" class="btn btn-ghost btn-xs !px-2 !py-1" title="Move down">&darr;</button>
               </form>
-              <c-ui.button variant="ghost" size="sm" class="!px-2 !py-1"
-                           hx-get="{% url 'core:variable_edit' environment.id var.key %}" hx-target="#variables-table" hx-swap="outerHTML"
-                           title="Edit">Edit</c-ui.button>
+              <button type="button" class="btn btn-ghost btn-xs !px-2 !py-1"
+                      hx-get="{% url 'core:variable_edit' environment.id var.key %}" hx-target="#variables-table" hx-swap="outerHTML"
+                      title="Edit">Edit</button>
               {% endif %}
               {% if can_delete %}
               <form hx-delete="{% url 'core:variable_delete' environment.id var.key %}" hx-target="#variables-table" hx-swap="outerHTML"
                     hx-confirm="Delete {{ var.key }}? This cannot be undone.">
                 {% csrf_token %}
                 <input type="hidden" name="revision" value="{{ environment.revision }}">
-                <c-ui.button variant="danger" size="sm" type="submit" class="!px-2 !py-1" title="Delete">
-                  <c-icon.trash class="w-4 h-4" />
-                </c-ui.button>
+                <button type="submit" class="btn btn-danger btn-xs !px-2 !py-1" title="Delete">
+                  {% icon "trash" "w-4 h-4" %}
+                </button>
               </form>
               {% endif %}
             </div>
@@ -113,8 +117,10 @@
     </table>
   </div>
   {% else %}
-  <c-ui.empty title="No variables yet" description="{% if can_write %}Add the first one to get started.{% else %}Ask someone with write access to add one.{% endif %}">
-    <c-icon.key class="w-8 h-8" />
-  </c-ui.empty>
+  <div class="empty-state">
+    <div class="empty-state-icon">{% icon "key" "w-8 h-8" %}</div>
+    <p class="font-medium text-ink">No variables yet</p>
+    <p class="text-sm text-muted mt-1 max-w-sm">{% if can_write %}Add the first one to get started.{% else %}Ask someone with write access to add one.{% endif %}</p>
+  </div>
   {% endif %}
 </div>
