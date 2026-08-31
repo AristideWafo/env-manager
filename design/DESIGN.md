@@ -158,7 +158,7 @@ Current implementation values:
 - `--radius-sm: 0.5rem` for controls and compact elements.
 - `--radius: 0.75rem` for cards and panels.
 - 1px `--line` borders for structural separation.
-- badges are fully rounded in the current CSS.
+- badges use `--radius-xs` for a compact rounded-rectangle shape.
 
 Reference evidence supports low-to-moderate radii and hairline borders, but not
 those exact values. Embedded cards, tables, buttons and fields have no drop
@@ -249,12 +249,10 @@ When a new UI requirement is ambiguous:
 - Exact colors, fonts, radii and spacing cannot be measured reliably from the
   photographed/perspective references. Existing code is authoritative for
   exact values.
-- Reference status tags are compact rounded rectangles; `.badge` currently
-  uses a full pill. Keep the implementation consistent unless a deliberate
-  component-wide change is requested.
-- Reference active navigation uses a light-gray selection in the clearest
-  sidebar view; `.nav-link.is-active` currently uses black. This is an
-  implementation choice, not a high-confidence extracted rule.
+- Reference status tags are compact rounded rectangles; `.badge` follows that
+  shape through `--radius-xs`.
+- Reference active navigation uses a light-gray selection; `.nav-link.is-active`
+  follows that neutral treatment so green remains reserved for state and focus.
 - Reference shadows appear on floating notifications and detached panels, but
   not on embedded app surfaces. A blanket “no shadows” rule would be wrong.
 - The green gradient focus card is repeated as part of the same dashboard
@@ -262,3 +260,13 @@ When a new UI requirement is ambiguous:
   to Env Manager is **LOW**.
 - Responsive behavior is implementation-led because all supplied images are
   1024×768 desktop references.
+
+## Implementation notes
+
+- Shared font links and the stylesheet are centralized in
+  `templates/components/font_assets.html`; both page shells therefore load the
+  exact same Inter and JetBrains Mono families and weights.
+- Shared brand and alert markup live in `templates/components/`. Layout and
+  visual variants remain plain CSS classes in `theme.css`.
+- Current behavior uses HTMX and small vanilla-JavaScript handlers. No Alpine.js
+  runtime is required.

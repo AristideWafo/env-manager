@@ -18,13 +18,11 @@ See design/DESIGN.md and design/COMPONENTS.md for the visual system.
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token }}">
   <title>{% block title %}Env Manager{% endblock %}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  {% include "components/font_assets.html" %}
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>window.__SCRIPT_PREFIX__ = "{{ request.META.SCRIPT_NAME }}";</script>
+  <script src="{% static 'js/ui.js' %}" defer></script>
   <script src="{% static 'js/webauthn.js' %}" defer></script>
 </head>
 <body class="h-full font-display bg-paper text-ink antialiased">
@@ -38,20 +36,16 @@ See design/DESIGN.md and design/COMPONENTS.md for the visual system.
                   md:static md:translate-x-0 md:w-60 md:shrink-0
                   flex flex-col border-r border-line bg-surface">
       <div class="flex items-center justify-between gap-2 px-5 py-5">
-        <div class="flex items-center gap-2 min-w-0">
-          <div class="rounded-lg bg-ink p-1.5 shrink-0">
-            {% icon "shield" "w-5 h-5 text-white" %}
-          </div>
-          <span class="font-semibold tracking-tight truncate">Env Manager</span>
-        </div>
+        {% include "components/brand.html" %}
         <button type="button" title="Close menu" aria-label="Close menu"
-                class="md:hidden shrink-0 text-muted hover:text-ink"
+                class="icon-button md:hidden shrink-0"
                 onclick="document.getElementById('sidebar').classList.add('-translate-x-full'); document.getElementById('sidebar-backdrop').classList.add('hidden');">
           {% icon "x" "w-5 h-5" %}
         </button>
       </div>
       <nav class="flex-1 px-3 space-y-1 overflow-y-auto">
-        <a href="{% url 'core:dashboard' %}" class="nav-link">
+        <p class="eyebrow px-3 pt-2 pb-1">Workspace</p>
+        <a href="{% url 'core:dashboard' %}" class="nav-link is-active" aria-current="page">
           {% icon "folder" "w-5 h-5" %} Projects
         </a>
         {% if user.is_authenticated and user.is_admin %}
@@ -67,7 +61,7 @@ See design/DESIGN.md and design/COMPONENTS.md for the visual system.
             <p class="text-sm font-medium text-ink truncate">{{ user.display_name|default:user.email }}</p>
             <p class="text-xs text-muted truncate">{{ user.role|title }}</p>
           </div>
-          <a href="{% url 'core:logout' %}" title="Log out" class="shrink-0 text-muted hover:text-ink transition-colors">
+          <a href="{% url 'core:logout' %}" title="Log out" aria-label="Log out" class="icon-button shrink-0">
             {% icon "logout" "w-5 h-5" %}
           </a>
         </div>
@@ -79,18 +73,18 @@ See design/DESIGN.md and design/COMPONENTS.md for the visual system.
       <header class="flex items-center justify-between flex-wrap gap-4 border-b border-line px-4 md:px-8 py-4">
         <div class="flex items-center gap-3 min-w-0">
           <button type="button" title="Open menu" aria-label="Open menu"
-                  class="md:hidden shrink-0 text-muted hover:text-ink"
+                  class="icon-button md:hidden shrink-0"
                   onclick="document.getElementById('sidebar').classList.remove('-translate-x-full'); document.getElementById('sidebar-backdrop').classList.remove('hidden');">
             {% icon "menu" "w-5 h-5" %}
           </button>
           <div class="min-w-0">
-            <h1 class="text-lg font-semibold text-ink truncate">{% block heading %}{% endblock %}</h1>
+            <h1 class="page-title truncate">{% block heading %}{% endblock %}</h1>
             {% block subheading %}{% endblock %}
           </div>
         </div>
-        <div class="flex items-center gap-3 shrink-0">
+        <div class="page-actions">
           {% block actions %}{% endblock %}
-          <a href="{% url 'core:logout' %}" class="md:hidden text-muted hover:text-ink">
+          <a href="{% url 'core:logout' %}" title="Log out" aria-label="Log out" class="icon-button md:hidden">
             {% icon "logout" "w-5 h-5" %}
           </a>
         </div>
@@ -100,10 +94,11 @@ See design/DESIGN.md and design/COMPONENTS.md for the visual system.
         {% if messages %}
         <div class="mb-4 space-y-2">
           {% for message in messages %}
-          <div class="alert {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
-            {% if message.tags == 'error' %}{% icon "x_circle" "w-5 h-5 shrink-0 mt-0.5" %}{% else %}{% icon "check_circle" "w-5 h-5 shrink-0 mt-0.5" %}{% endif %}
-            <div>{{ message }}</div>
-          </div>
+            {% if message.tags == 'error' %}
+              {% include "components/alert.html" with tone="error" icon_name="x_circle" text=message live=True only %}
+            {% else %}
+              {% include "components/alert.html" with tone="success" icon_name="check_circle" text=message live=True only %}
+            {% endif %}
           {% endfor %}
         </div>
         {% endif %}

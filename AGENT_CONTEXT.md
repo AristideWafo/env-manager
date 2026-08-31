@@ -61,7 +61,7 @@ Le pipeline peut optionnellement appeler `POST /environments/{id}/lock` avant un
 | Écriture fichier | tmp file → fsync → rename atomique, systématique | Empêche toute lecture d'un fichier partiellement écrit par le CI/CD |
 | Chemins fichiers | `allowed_roots` déclarés admin-only, résolution canonique + vérification descendant | Empêche path traversal et symlink escape |
 | Backend | Django + Django Ninja | Cohérent avec la stack FairFare, admin auto-généré utile en interne |
-| Frontend | Django templates + HTMX + Alpine.js + Tailwind CSS | Un seul déploiement, pas de build SPA séparé, UX fluide sans rechargement |
+| Frontend | Django templates + HTMX + JavaScript ciblé + Tailwind CSS | Un seul déploiement, pas de build SPA séparé, UX fluide sans rechargement |
 | Déploiement | Docker + Docker Compose sur Hetzner | Cohérent avec l'infra FairFare existante |
 | Registre images | GHCR | Gratuit avec GitHub, pas de coût AWS supplémentaire |
 
@@ -74,7 +74,7 @@ Le pipeline peut optionnellement appeler `POST /environments/{id}/lock` avant un
 | Auth | py_webauthn |
 | DB | SQLite (fichier monté en volume Docker) |
 | Chiffrement | cryptography (Fernet) |
-| Frontend | Django templates + HTMX + Alpine.js + Tailwind CSS (CDN ou build léger) |
+| Frontend | Django templates + HTMX + JavaScript ciblé + Tailwind CSS (CDN ou build léger) |
 | Tests | pytest + pytest-django |
 | Lint | ruff |
 | CI/CD | GitHub Actions → GHCR → déploiement Hetzner (SSH + docker compose) |

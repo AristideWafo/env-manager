@@ -1,0 +1,4 @@
+{% load icons %}<div class="alert alert-{{ tone|default:'success' }}"{% if live %} role="status" aria-live="polite"{% endif %}>
+  {% icon icon_name|default:"check_circle" "w-5 h-5 shrink-0 mt-0.5" %}
+  <div>{{ text }}</div>
+</div>

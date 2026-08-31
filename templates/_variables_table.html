@@ -1,13 +1,16 @@
 {% load icons %}
 <div id="variables-table">
   {% if message %}
-  <div class="alert {% if message_tone == 'success' %}alert-success{% else %}alert-error{% endif %} mb-4">
-    {% if message_tone == 'success' %}{% icon "check_circle" "w-5 h-5 shrink-0 mt-0.5" %}{% else %}{% icon "x_circle" "w-5 h-5 shrink-0 mt-0.5" %}{% endif %}
-    <div>{{ message }}</div>
+  <div class="mb-4">
+    {% if message_tone == 'success' %}
+      {% include "components/alert.html" with tone="success" icon_name="check_circle" text=message live=True only %}
+    {% else %}
+      {% include "components/alert.html" with tone="error" icon_name="x_circle" text=message live=True only %}
+    {% endif %}
   </div>
   {% endif %}
   {% if variables %}
-  <div class="overflow-x-auto -mx-5">
+  <div class="table-scroll">
     {% comment %}
     table-fixed + an explicit colgroup: Key/Actions get a stable width and
     Value takes whatever's left, all independent of cell content — under
@@ -18,7 +21,7 @@
     forcing the table wider (never truncated — full value stays visible,
     it just wraps).
     {% endcomment %}
-    <table class="table-clean w-full text-sm table-fixed">
+    <table class="table-clean table-fixed">
       <colgroup>
         <col class="w-[28%]">
         <col>
@@ -35,9 +38,9 @@
         {% for var in variables %}
         {% ifchanged var.group %}
           {% if var.group %}
-          <tr class="bg-[var(--line-soft)]">
+          <tr class="table-group-row">
             <td colspan="3" class="px-5 pt-4 pb-1.5">
-              <div class="flex items-center justify-between gap-2">
+              <div class="table-group-label">
                 <span class="eyebrow text-accent">{{ var.group }}</span>
                 {% if can_write %}
                 <div class="flex items-center gap-1">
@@ -65,7 +68,7 @@
           <td colspan="3" class="px-5 pt-2 text-xs text-muted italic whitespace-pre-line">{{ var.comment }}</td>
         </tr>
         {% endif %}
-        <tr id="var-row-{{ var.key }}">
+        <tr id="var-row-{{ var.key }}" class="table-data-row">
           <td class="font-mono text-ink break-all">{{ var.key }}</td>
           <td class="font-mono text-muted break-all">
             {% if var.secret %}
@@ -75,7 +78,7 @@
             {% endif %}
           </td>
           <td>
-            <div class="flex items-center justify-end gap-1.5">
+            <div class="table-actions">
               {% if var.secret %}
               <form hx-post="{% url 'core:variable_reveal' environment.id var.key %}"
                     hx-target="#var-row-{{ var.key }} td:nth-child(2)" hx-swap="innerHTML"
@@ -83,28 +86,28 @@
                     class="flex items-center gap-1">
                 {% csrf_token %}
                 <input type="hidden" name="confirm" value="on">
-                <button type="submit" class="btn btn-ghost btn-xs !px-2 !py-1" title="Reveal">{% icon "eye" "w-4 h-4" %}</button>
+                <button type="submit" class="btn btn-ghost btn-icon" title="Reveal" aria-label="Reveal {{ var.key }}">{% icon "eye" "w-4 h-4" %}</button>
               </form>
               {% endif %}
               {% if can_write %}
               <form hx-post="{% url 'core:variable_move' environment.id var.key 'up' %}" hx-target="#variables-table" hx-swap="outerHTML" class="inline">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-ghost btn-xs !px-2 !py-1" title="Move up">&uarr;</button>
+                <button type="submit" class="btn btn-ghost btn-icon" title="Move up" aria-label="Move {{ var.key }} up">{% icon "arrow_up" "w-4 h-4" %}</button>
               </form>
               <form hx-post="{% url 'core:variable_move' environment.id var.key 'down' %}" hx-target="#variables-table" hx-swap="outerHTML" class="inline">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-ghost btn-xs !px-2 !py-1" title="Move down">&darr;</button>
+                <button type="submit" class="btn btn-ghost btn-icon" title="Move down" aria-label="Move {{ var.key }} down">{% icon "arrow_down" "w-4 h-4" %}</button>
               </form>
-              <button type="button" class="btn btn-ghost btn-xs !px-2 !py-1"
+              <button type="button" class="btn btn-ghost btn-icon"
                       hx-get="{% url 'core:variable_edit' environment.id var.key %}" hx-target="#variables-table" hx-swap="outerHTML"
-                      title="Edit">Edit</button>
+                      title="Edit" aria-label="Edit {{ var.key }}">{% icon "pencil" "w-4 h-4" %}</button>
               {% endif %}
               {% if can_delete %}
               <form hx-delete="{% url 'core:variable_delete' environment.id var.key %}" hx-target="#variables-table" hx-swap="outerHTML"
                     hx-confirm="Delete {{ var.key }}? This cannot be undone.">
                 {% csrf_token %}
                 <input type="hidden" name="revision" value="{{ environment.revision }}">
-                <button type="submit" class="btn btn-danger btn-xs !px-2 !py-1" title="Delete">
+                <button type="submit" class="btn btn-danger btn-icon" title="Delete" aria-label="Delete {{ var.key }}">
                   {% icon "trash" "w-4 h-4" %}
                 </button>
               </form>

@@ -2,27 +2,27 @@
 {% load icons %}
 {% block title %}Dashboard — Env Manager{% endblock %}
 {% block heading %}Projects{% endblock %}
-{% block subheading %}<p class="text-sm text-muted truncate">Environments you can access, grouped by project.</p>{% endblock %}
+{% block subheading %}<p class="page-subtitle truncate">Environments you can access, grouped by project.</p>{% endblock %}
 {% block content %}
 
 {% if projects %}
-<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+<div class="stat-grid">
   <div class="stat-tile flex items-center gap-3">
-    <div class="shrink-0 rounded-lg p-2 bg-paper text-ink">{% icon "folder" "w-5 h-5" %}</div>
+    <div class="icon-chip">{% icon "folder" "w-5 h-5" %}</div>
     <div>
       <div class="eyebrow">Projects</div>
       <div class="stat-number text-xl">{{ projects|length }}</div>
     </div>
   </div>
   <div class="stat-tile flex items-center gap-3">
-    <div class="shrink-0 rounded-lg p-2 bg-accent-soft text-accent" style="background:var(--accent-soft)">{% icon "shield" "w-5 h-5" %}</div>
+    <div class="icon-chip icon-chip-positive">{% icon "shield" "w-5 h-5" %}</div>
     <div>
       <div class="eyebrow">Environments</div>
       <div class="stat-number text-xl">{{ total_environments }}</div>
     </div>
   </div>
   <div class="stat-tile flex items-center gap-3">
-    <div class="shrink-0 rounded-lg p-2" style="background:var(--warning-soft); color:var(--warning)">{% icon "lock" "w-5 h-5" %}</div>
+    <div class="icon-chip icon-chip-warning">{% icon "lock" "w-5 h-5" %}</div>
     <div>
       <div class="eyebrow">Locked for deploy</div>
       <div class="stat-number text-xl">{{ locked_environments }}</div>
@@ -40,21 +40,25 @@
         <p class="card-subtitle">{{ project.environments.count }} environment{{ project.environments.count|pluralize }}</p>
       </div>
     </div>
-    <div class="divide-y divide-line">
+    <div class="row-list">
       {% for env in project.environments.all %}
-      <a href="{% url 'core:environment' env.id %}" class="flex items-center justify-between gap-3 px-5 py-3.5 hover:bg-[var(--line-soft)] transition-colors">
-        <div class="flex items-center gap-2.5 min-w-0">
+      <a href="{% url 'core:environment' env.id %}" class="row-list-item">
+        <div class="row-list-main">
           {% icon "folder" "w-4 h-4 text-faint shrink-0" %}
-          <span class="font-medium text-ink truncate">{{ env.name }}</span>
-          <span class="badge badge-neutral">rev {{ env.revision }}</span>
-          {% if env.locked_for_deploy %}
-          <span class="badge badge-warning">{% icon "lock" "w-3 h-3" %} locked</span>
-          {% endif %}
+          <div class="row-list-content">
+            <div class="row-list-title truncate">{{ env.name }}</div>
+            <div class="row-list-meta flex items-center gap-1.5 flex-wrap">
+              <span class="badge badge-neutral">rev {{ env.revision }}</span>
+              {% if env.locked_for_deploy %}
+              <span class="badge badge-warning">{% icon "lock" "w-3 h-3" %} locked</span>
+              {% endif %}
+            </div>
+          </div>
         </div>
-        <span class="text-faint shrink-0">{% icon "chevron_right" "w-4 h-4" %}</span>
+        <span class="row-list-end text-faint">{% icon "chevron_right" "w-4 h-4" %}</span>
       </a>
       {% empty %}
-      <p class="px-5 py-4 text-sm text-muted">No environments yet.</p>
+      <p class="row-list-item text-sm text-muted">No environments yet.</p>
       {% endfor %}
     </div>
   </div>

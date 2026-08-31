@@ -7,24 +7,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token }}">
   <title>{% block title %}Env Manager{% endblock %}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  {% include "components/font_assets.html" %}
   <script src="https://cdn.tailwindcss.com"></script>
   <script>window.__SCRIPT_PREFIX__ = "{{ request.META.SCRIPT_NAME }}";</script>
+  <script src="{% static 'js/ui.js' %}" defer></script>
   <script src="{% static 'js/webauthn.js' %}" defer></script>
 </head>
 <body class="h-full font-display bg-paper text-ink antialiased">
-  <div class="min-h-screen flex flex-col items-center justify-center px-4 py-12">
-    <div class="w-full max-w-sm">
-      <div class="flex flex-col items-center gap-2 mb-6">
-        <div class="rounded-xl bg-ink p-2.5">
-          {% icon "shield" "w-6 h-6 text-white" %}
-        </div>
-        <span class="font-semibold tracking-tight text-lg">Env Manager</span>
+  <div class="auth-shell">
+    <div class="auth-container">
+      <div class="auth-brand">
+        {% include "components/brand.html" with centered=True only %}
       </div>
-      <div class="card p-6">
+      <div class="card auth-panel">
         {% block content %}{% endblock %}
       </div>
     </div>

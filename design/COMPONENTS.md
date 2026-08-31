@@ -39,6 +39,8 @@ must come from the CSS tokens/classes.
   the pointer cursor.
 - Preserve a visible keyboard focus indicator. Do not remove the native outline
   until a tokenized `:focus-visible` style exists.
+- `.btn-icon` creates the consistent square target for icon-only table actions;
+  always add `title` and `aria-label`.
 
 **Responsive behavior:** allow groups to wrap. Keep the primary action visible
 and do not collapse distinct actions into an unlabeled icon set by default.
@@ -86,8 +88,9 @@ border around arbitrary text.
 **Purpose:** display repeated, scannable records that do not need table columns,
 as on Projects and Revision history.
 
-**Structure:** one `.card` containing `divide-y` rows. Each row has a flexible
-identity block on the left and compact state/actions on the right.
+**Structure:** one `.card` containing `.row-list`; each `.row-list-item` has a
+flexible `.row-list-main` identity block and compact `.row-list-end` state or
+actions.
 
 **Rules:** align icons and primary labels; truncate secondary metadata before
 actions; use one subtle hover only when the row navigates. Rows stay part of one
@@ -115,8 +118,8 @@ secondary metadata before hiding primary state/action information.
 - `.badge-warning`: locked, secret, caution or uncertainty.
 
 **Visual rules:** compact 12px text, optional 12px leading icon, semantic soft
-fill plus matching border and text. The current implementation is pill-shaped;
-do not mix pill and rectangular badges on the same screen.
+fill plus matching border and text. Use the shared `--radius-xs`
+rounded-rectangle shape; badges are not pills.
 
 **States:** badges have no hover, focus or pressed state because they are not
 interactive.
@@ -138,8 +141,9 @@ badge hue without readable text.
 </div>
 ```
 
-**Variants:** `.alert-error` and `.alert-success`. Add another semantic variant
-only when the product has a real state that cannot use one of these.
+**Variants:** `.alert-error`, `.alert-success` and `.alert-warning`. Warning is
+used for locked or temporarily unavailable environments, not destructive
+failures.
 
 **Visual rules:** soft semantic surface, matching 1px border, readable semantic
 text and a 20px icon. Alerts embedded in content have no shadow.
@@ -226,6 +230,9 @@ horizontal padding; related fields use 12–16px gaps.
 copy when validation fails. Checkboxes remain native and use the accent only for
 their checked/focus state.
 
+Use `.field-check` + `.field-checkbox` for checkbox rows. Do not reproduce their
+spacing or focus color with Tailwind utilities.
+
 **Responsive behavior:** two-column form grids become one column below `sm`.
 
 **Do not use:** unlabeled inputs, placeholder-only forms, or monospaced prose
@@ -235,7 +242,7 @@ fields.
 
 **Purpose:** temporarily replace the variables table with a focused HTMX form.
 
-**Structure:** `#variables-table` wrapper, one soft neutral bordered panel,
+**Structure:** `#variables-table` wrapper, one `.inline-editor` soft neutral panel,
 field grid, optional secret checkbox, then Save and Cancel.
 
 **Rules:** retain the same DOM target and `outerHTML` swap contract; use one
@@ -281,9 +288,8 @@ align.
 **Structure:** 20px outline icon followed by a short label.
 
 **States:** muted by default, soft neutral hover, `.is-active` for the current
-destination. The current active style is near-black with white text; the clearest
-reference uses light gray, so treat this as an implementation decision rather
-than a universal extracted rule.
+destination. Active navigation uses the same light neutral surface as the
+reference and exposes `aria-current="page"`.
 
 **Responsive behavior:** the whole sidebar becomes an off-canvas drawer below
 `md`; links keep labels and order.
@@ -292,6 +298,15 @@ than a universal extracted rule.
 information architecture.
 
 ## Page shells
+
+Shared shell fragments live in `templates/components/`:
+
+- `font_assets.html` is the single source for Inter, JetBrains Mono and
+  `theme.css` loading;
+- `brand.html` renders the shared shield mark and name, with an optional centered
+  auth variant;
+- `alert.html` renders server-side semantic alerts. Client-side WebAuthn feedback
+  uses the matching safe DOM helper in `static/js/ui.js`.
 
 ### `templates/layouts/app.html`
 
