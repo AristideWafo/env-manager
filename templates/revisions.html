@@ -2,31 +2,31 @@
 {% load icons %}
 {% block title %}History — {{ environment }}{% endblock %}
 {% block heading %}Revision history{% endblock %}
-{% block subheading %}<p class="text-sm text-muted truncate">{{ environment.project.name }} / {{ environment.name }}</p>{% endblock %}
+{% block subheading %}<p class="page-subtitle truncate">{{ environment.project.name }} / {{ environment.name }}</p>{% endblock %}
 {% block actions %}
-<a href="{% url 'core:environment' environment.id %}" class="btn btn-ghost btn-sm">&larr; {{ environment.name }}</a>
+<a href="{% url 'core:environment' environment.id %}" class="btn btn-ghost btn-sm">{% icon "arrow_left" "w-4 h-4" %} {{ environment.name }}</a>
 {% endblock %}
 {% block content %}
 
 <div class="card">
-  <div class="divide-y divide-line">
+  <div class="row-list">
     {% for rev in revisions %}
-    <div class="flex items-center justify-between gap-3 px-5 py-3.5">
-      <div class="flex items-center gap-3 min-w-0">
+    <div class="row-list-item">
+      <div class="row-list-main">
         {% icon "history" "w-4 h-4 text-faint shrink-0" %}
-        <div class="min-w-0">
+        <div class="row-list-content">
           <div class="flex items-center gap-2">
-            <span class="font-medium text-ink">rev {{ rev.revision_number }}</span>
+            <span class="row-list-title font-mono">rev {{ rev.revision_number }}</span>
             {% if rev.revision_number == environment.revision %}
             <span class="badge badge-positive">{% icon "check_circle" "w-3 h-3" %} current</span>
             {% endif %}
           </div>
-          <p class="text-xs text-muted truncate">{{ rev.created_by.email|default:"system" }} · {{ rev.created_at }}</p>
+          <p class="row-list-meta font-mono truncate">{{ rev.created_by.email|default:"system" }} · {{ rev.created_at|date:"M j, Y · H:i" }}</p>
         </div>
       </div>
       {% if can_write and rev.revision_number != environment.revision %}
       <form method="post" action="{% url 'core:revision_restore' environment.id rev.revision_number %}"
-            onsubmit="return confirm('Restore revision {{ rev.revision_number }}? This creates a new revision.');" class="shrink-0">
+            onsubmit="return confirm('Restore revision {{ rev.revision_number }}? This creates a new revision.');" class="row-list-end">
         {% csrf_token %}
         <button type="submit" class="btn btn-secondary btn-sm">Restore</button>
       </form>

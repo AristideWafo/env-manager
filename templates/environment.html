@@ -2,9 +2,9 @@
 {% load icons %}
 {% block title %}{{ environment }} — Env Manager{% endblock %}
 {% block heading %}{{ environment.project.name }} / {{ environment.name }}{% endblock %}
-{% block subheading %}<p class="text-sm text-muted truncate">Revision {{ environment.revision }}{% if environment.locked_for_deploy %} · locked for deploy{% endif %}</p>{% endblock %}
+{% block subheading %}<p class="page-subtitle truncate">Revision {{ environment.revision }}{% if environment.locked_for_deploy %} · locked for deploy{% endif %}</p>{% endblock %}
 {% block actions %}
-<a href="{% url 'core:dashboard' %}" class="btn btn-ghost btn-sm">&larr; Projects</a>
+<a href="{% url 'core:dashboard' %}" class="btn btn-ghost btn-sm">{% icon "arrow_left" "w-4 h-4" %} Projects</a>
 <a href="{% url 'core:revisions' environment.id %}" class="btn btn-secondary btn-sm">
   {% icon "history" "w-4 h-4" %} History
 </a>
@@ -12,9 +12,8 @@
 {% block content %}
 
 {% if environment.locked_for_deploy %}
-<div class="alert alert-error mb-4">
-  {% icon "x_circle" "w-5 h-5 shrink-0 mt-0.5" %}
-  <div>This environment is locked for deploy — the CI/CD pipeline is currently writing/reading it. Changes are blocked until it unlocks.</div>
+<div class="mb-4">
+  {% include "components/alert.html" with tone="warning" icon_name="lock" text="This environment is locked for deploy — the CI/CD pipeline is currently using it. Changes are blocked until it unlocks." only %}
 </div>
 {% endif %}
 
@@ -29,7 +28,7 @@
       <form hx-post="{% url 'core:environment_refresh' environment.id %}" hx-target="#variables-table" hx-swap="outerHTML" class="inline">
         {% csrf_token %}
         <button type="submit" class="btn btn-ghost btn-sm" title="Re-read the .env file on disk and import any key not yet tracked">
-          Refresh from file
+          {% icon "refresh" "w-4 h-4" %} Refresh from file
         </button>
       </form>
       <button type="button" class="btn btn-primary btn-sm"

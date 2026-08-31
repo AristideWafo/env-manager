@@ -1,34 +1,34 @@
 {% load icons %}
 <div id="variables-table">
 <form hx-post="{% url 'core:variable_edit' environment.id var.key %}" hx-target="#variables-table" hx-swap="outerHTML"
-      class="space-y-3 rounded-xl border border-line bg-[var(--line-soft)] p-4">
+      class="inline-editor space-y-3">
   {% csrf_token %}
   <div class="font-mono text-sm text-ink">{{ var.key }}</div>
   <div>
-    <label class="field-label">Value</label>
+    <label for="variable-value" class="field-label">Value</label>
     {% if not var.is_secret %}
-    <input name="value" value="{{ var.value }}" class="field-input font-mono">
+    <input id="variable-value" name="value" value="{{ var.value }}" spellcheck="false" class="field-input font-mono">
     {% else %}
-    <input name="value" placeholder="new secret value" class="field-input font-mono">
+    <input id="variable-value" name="value" placeholder="new secret value" spellcheck="false" class="field-input font-mono">
     {% endif %}
   </div>
   <input type="hidden" name="revision" value="{{ environment.revision }}">
   <div class="grid sm:grid-cols-2 gap-3">
     <div>
-      <label class="field-label">Group <span class="text-faint">(optional)</span></label>
-      <input name="group" list="group-names" value="{{ var.group_name }}" placeholder="Database" class="field-input">
+      <label for="variable-group" class="field-label">Group <span class="text-faint">(optional)</span></label>
+      <input id="variable-group" name="group" list="group-names" value="{{ var.group_name }}" placeholder="Database" class="field-input">
       <datalist id="group-names">
         {% for g in group_names %}<option value="{{ g }}">{% endfor %}
       </datalist>
     </div>
     <div>
-      <label class="field-label">Comment <span class="text-faint">(optional)</span></label>
-      <input name="comment" value="{{ var.leading_comment }}" placeholder="shown above the variable" class="field-input">
+      <label for="variable-comment" class="field-label">Comment <span class="text-faint">(optional)</span></label>
+      <input id="variable-comment" name="comment" value="{{ var.leading_comment }}" placeholder="shown above the variable" class="field-input">
     </div>
   </div>
-  <label class="flex items-center gap-2 text-sm text-muted">
+  <label class="field-check">
     <input type="checkbox" name="is_secret" {% if var.is_secret %}checked{% endif %}
-           class="rounded border-line text-accent focus:ring-accent"> secret
+           class="field-checkbox"> Secret
   </label>
   <div class="flex gap-2 pt-1">
     <button type="submit" class="btn btn-primary btn-sm">Save</button>

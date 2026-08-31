@@ -2,32 +2,33 @@
 {% load icons %}
 {% block title %}Sign in — Env Manager{% endblock %}
 {% block content %}
-<h1 class="text-lg font-semibold text-center mb-1">Sign in</h1>
-<p class="text-sm text-muted text-center mb-6">Use the passkey registered to your account.</p>
+<h1 class="auth-title">Sign in</h1>
+<p class="auth-subtitle">Use the passkey registered to your account.</p>
 
-<div class="space-y-4">
+<form id="login-form" class="space-y-4">
   <div>
     <label for="email" class="field-label">Email</label>
-    <input id="email" type="email" placeholder="you@company.com" autocomplete="email" class="field-input">
+    <input id="email" type="email" placeholder="you@company.com" autocomplete="email" spellcheck="false" required class="field-input">
   </div>
-  <button id="login-btn" type="button" class="btn btn-primary w-full">
+  <button id="login-btn" type="submit" class="btn btn-primary w-full">
     {% icon "key" "w-4 h-4" %} Continue with passkey
   </button>
-  <div id="msg"></div>
-  <p class="text-sm text-muted text-center">No account yet? Ask an admin to invite you.</p>
-</div>
+  <div id="msg" aria-live="polite"></div>
+  <p class="auth-footnote">No account yet? Ask an admin to invite you.</p>
+</form>
 {% endblock %}
 {% block extra_script %}
 <script>
-  document.getElementById("login-btn").addEventListener("click", async () => {
+  document.getElementById("login-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
     const email = document.getElementById("email").value.trim();
     const msg = document.getElementById("msg");
-    msg.innerHTML = "";
+    msg.replaceChildren();
     try {
       await loginWithPasskey(email);
       window.location.href = "{% url 'core:dashboard' %}";
     } catch (e) {
-      msg.innerHTML = `<div class="alert alert-error">${e.message || "login failed"}</div>`;
+      showAlert(msg, "error", e.message || "Login failed");
     }
   });
 </script>

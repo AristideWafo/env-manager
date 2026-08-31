@@ -1,33 +1,33 @@
 {% load icons %}
 <div id="variables-table">
 <form hx-post="{% url 'core:variable_create' environment.id %}" hx-target="#variables-table" hx-swap="outerHTML"
-      class="space-y-3 rounded-xl border border-line bg-[var(--line-soft)] p-4">
+      class="inline-editor space-y-3">
   {% csrf_token %}
   <div class="grid sm:grid-cols-2 gap-3">
     <div>
-      <label class="field-label">Key</label>
-      <input name="key" placeholder="DATABASE_URL" required class="field-input font-mono">
+      <label for="variable-key" class="field-label">Key</label>
+      <input id="variable-key" name="key" placeholder="DATABASE_URL" spellcheck="false" required class="field-input font-mono">
     </div>
     <div>
-      <label class="field-label">Value</label>
-      <input name="value" placeholder="value" class="field-input font-mono">
+      <label for="variable-value" class="field-label">Value</label>
+      <input id="variable-value" name="value" placeholder="value" spellcheck="false" class="field-input font-mono">
     </div>
   </div>
   <div class="grid sm:grid-cols-2 gap-3">
     <div>
-      <label class="field-label">Group <span class="text-faint">(optional)</span></label>
-      <input name="group" list="group-names" placeholder="Database" class="field-input">
+      <label for="variable-group" class="field-label">Group <span class="text-faint">(optional)</span></label>
+      <input id="variable-group" name="group" list="group-names" placeholder="Database" class="field-input">
       <datalist id="group-names">
         {% for g in group_names %}<option value="{{ g }}">{% endfor %}
       </datalist>
     </div>
     <div>
-      <label class="field-label">Comment <span class="text-faint">(optional)</span></label>
-      <input name="comment" placeholder="shown above the variable" class="field-input">
+      <label for="variable-comment" class="field-label">Comment <span class="text-faint">(optional)</span></label>
+      <input id="variable-comment" name="comment" placeholder="shown above the variable" class="field-input">
     </div>
   </div>
-  <label class="flex items-center gap-2 text-sm text-muted">
-    <input type="checkbox" name="is_secret" class="rounded border-line text-accent focus:ring-accent"> mark as secret
+  <label class="field-check">
+    <input type="checkbox" name="is_secret" class="field-checkbox"> Mark as secret
   </label>
   <div class="flex gap-2 pt-1">
     <button type="submit" class="btn btn-primary btn-sm">Save</button>
