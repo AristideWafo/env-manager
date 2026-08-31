@@ -4,6 +4,15 @@ All notable changes to this project are documented here. Entries are
 generated automatically from conventional commits by the release pipeline.
 
 <!-- entries below are prepended automatically, newest first -->
+## v0.12.3 - 2026-08-31
+
+### [0.12.3](https://github.com/AristideWafo/env-manager/compare/v0.12.2...v0.12.3) (2026-08-31)
+
+
+### Code Refactoring
+
+* **ui:** design-system polish, accessibility, shared shell partials ([#18](https://github.com/AristideWafo/env-manager/issues/18)) ([6b96144](https://github.com/AristideWafo/env-manager/commit/6b961443e1341a91b77d230753d508ef2e9b8240))
+
 ## v0.12.2 - 2026-08-31
 
 ### [0.12.2](https://github.com/AristideWafo/env-manager/compare/v0.12.1...v0.12.2) (2026-08-31)
